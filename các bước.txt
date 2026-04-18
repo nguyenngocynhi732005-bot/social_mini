@@ -1,0 +1,51 @@
+Giai đoạn 1: Thiết lập nền tảng (Cơ sở dữ liệu & Model)
+Đây là bước quan trọng nhất để định hình cách dữ liệu chat được lưu trữ và truy xuất.
+
+
+Bước 1: Tạo các file Migration để thiết lập bảng. Bắt đầu với các bảng cốt lõi: conversations, conversation_participants, và chat_messages.
++2
+
+
+Bước 2: Định nghĩa các Models tương ứng và thiết lập mối quan hệ (Relationships) như: một hội thoại có nhiều tin nhắn, một tin nhắn thuộc về một người dùng.
++2
+
+Giai đoạn 2: Xây dựng luồng Chat cơ bản (Text Only)
+Tập trung vào việc gửi và nhận tin nhắn văn bản trước khi làm đến file hay ảnh.
+
+
+Backend: Viết ChatService để xử lý logic lưu tin nhắn và tạo MessageSent Event để phát (broadcast) dữ liệu qua socket.
++2
+
+
+Frontend: Sử dụng Laravel Reverb (hoặc Pusher) để lắng nghe sự kiện và hiển thị tin nhắn ngay lập tức lên giao diện mà không cần load lại trang.
++1
+
+
+UI: Render giao diện danh sách hội thoại và khung chat (Blade views).
+
+Giai đoạn 3: Nâng cấp trải nghiệm (Realtime Features)
+Khi tin nhắn đã chạy ổn định, bạn thêm các "gia vị" để giống Messenger hơn:
+
+
+Trạng thái: Làm tính năng "Đang soạn tin" (Typing indicator) và Online/Offline. Sử dụng cơ chế heartbeat mỗi 20-30 giây để cập nhật trạng thái người dùng.
++3
+
+
+Đính kèm: Phát triển AttachmentService để xử lý upload ảnh và file với giới hạn dung lượng (Ảnh 5MB, File 20MB).
++2
+
+
+Thông báo: Phát sự kiện MessageRead khi người dùng mở xem tin nhắn.
+
+Giai đoạn 4: Tính năng nâng cao & Hoàn thiện
+Video Call: Tích hợp SDK của ZegoCloud hoặc Agora. Backend chỉ đóng vai trò cấp Token, còn việc truyền tải video sẽ do SDK xử lý.
++3
+
+
+Testing: Viết các bản Feature Test để đảm bảo khi bạn sửa code ở phần này không làm hỏng phần kia.
+
+---
+ĐỂ chạy giao diện: chạy 3 terminal: 
+php artisan serve
+npm run watch
+php artisan websockets:serve

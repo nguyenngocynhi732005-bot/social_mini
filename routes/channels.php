@@ -16,3 +16,10 @@ use Illuminate\Support\Facades\Broadcast;
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
+
+Broadcast::channel('chat.{conversationId}', function ($user, $conversationId) {
+    // Chỉ cho phép nếu user là thành viên của cuộc hội thoại [cite: 56, 99]
+    return \App\Models\ConversationParticipant::where('user_id', $user->id)
+        ->where('conversation_id', $conversationId)
+        ->exists();
+});
