@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -13,18 +12,11 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $primaryKey = 'ID';
-
     protected $keyType = 'int';
-
     public $incrementing = true;
 
     const UPDATED_AT = null;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'name',
         'email',
@@ -46,25 +38,20 @@ class User extends Authenticatable
         'password',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
         'birth_date' => 'date',
     ];
+
+    public function getIdAttribute()
+    {
+        return $this->attributes['ID'] ?? $this->attributes['id'] ?? null;
+    }
 
     public function getAvatarUrlAttribute(): string
     {
@@ -110,5 +97,33 @@ class User extends Authenticatable
     public function setRelationshipAttribute($value)
     {
         $this->attributes['relationship'] = $value;
+    }
+
+    public function friendsOfMine()
+    {
+        return $this->belongsToMany(self::class, 'friendships', 'user_id', 'friend_id', 'ID', 'ID')
+            ->wherePivot('status', 'accepted');
+    }
+
+    public function friendOf()
+    {
+        return $this->belongsToMany(self::class, 'friendships', 'friend_id', 'user_id', 'ID', 'ID')
+            ->wherePivot('status', 'accepted');
+    }
+
+    public function getFriendsAttribute()
+    {
+        return $this->friendsOfMine->merge($this->friendOf);
+    }
+
+    public function groups()
+    {
+        return $this->belongsToMany(SocialGroup::class, 'group_members', 'user_id', 'group_id', 'ID', 'id')
+            ->withPivot('role', 'joined_at');
+    }
+
+    public function blockedUsers()
+    {
+        return $this->belongsToMany(self::class, 'user_blocks', 'blocker_id', 'blocked_id', 'ID', 'ID');
     }
 }

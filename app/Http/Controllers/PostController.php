@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Post;
+use App\Models\Post;            
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,11 +30,11 @@ class PostController extends Controller
         $rawContent = (string) $request->input('content', '');
         $rawContent = str_replace('<span class="ql-cursor">﻿</span>', '', $rawContent);
         $plainText = trim(preg_replace('/\s+/u', ' ', strip_tags(str_replace('&nbsp;', ' ', $rawContent))));
-            $hasUploadedMedia = (bool) $request->filled('uploaded_media_path') || (bool) $request->filled('uploaded_media_type');
+        $hasUploadedMedia = (bool) $request->filled('uploaded_media_path') || (bool) $request->filled('uploaded_media_type');
         $content = $plainText !== '' ? $rawContent : null;
 
         if ($plainText === '' && !$request->hasFile('media') && !$hasUploadedMedia) {
-                return back()->withErrors(['post' => 'Bài viết cần nội dung hoặc ảnh/video.'])->withInput();
+            return back()->withErrors(['post' => 'Bài viết cần nội dung hoặc ảnh/video.'])->withInput();
         }
 
         $postUser = $this->resolvePostUser($request);

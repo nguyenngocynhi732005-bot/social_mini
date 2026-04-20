@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('content')
 <div id="storiesRealtimeMeta"
@@ -6,11 +6,11 @@
     data-story-count="{{ $storyCount ?? 0 }}"
     data-snapshot-url="{{ route('stories.snapshot') }}"></div>
 
-<!-- DÃY STORY (REEFS) -->
+<!-- DÃƒY STORY (REEFS) -->
 @include('components.story_bar')
 
 <div style="max-width: 920px; margin-left: auto; margin-right: auto;">
-    <!-- 2. Ô ĐĂNG BÀI VIẾT -->
+    <!-- 2. Ã” ÄÄ‚NG BÃ€I VIáº¾T -->
     <div class="card mb-3 shadow-sm">
         <div class="card-body">
             <div class="d-flex align-items-center gap-2 mb-2">
@@ -22,7 +22,7 @@
                     style="background-color: #f0f2f5;"
                     data-bs-toggle="modal"
                     data-bs-target="#postModal">
-                    Bạn đang nghĩ gì thế?
+                    Bạn đang nghĩ gì?
                 </button>
 
             </div>
@@ -39,7 +39,7 @@
             <form id="createPostForm" action="{{ route('post.store') }}" method="POST" enctype="multipart/form-data" data-chunk-url="{{ route('post.upload.chunk') }}" data-complete-url="{{ route('post.upload.complete') }}">
                 @csrf
                 <div class="modal-body">
-                    <!-- Thông tin User -->
+                    <!-- ThÃ´ng tin User -->
                     <div class="d-flex align-items-center mb-3">
                         <img src="https://i.pravatar.cc/45?u=nhi" class="rounded-circle me-2 border" width="45" height="45">
                         <div>
@@ -47,25 +47,25 @@
                             <div class="dropdown mt-1">
                                 <button id="postPrivacyBtn" type="button" class="badge bg-light text-dark fw-normal border d-inline-flex align-items-center" style="font-size: 12px;" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i id="postPrivacyIcon" class="fas fa-globe-asia me-1"></i>
-                                    <span id="postPrivacyLabel">Cong khai</span>
+                                    <span id="postPrivacyLabel">Công khai</span>
                                 </button>
                                 <ul class="dropdown-menu shadow-sm">
-                                    <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="post" data-privacy-value="public">🌍 Cong khai</button></li>
-                                    <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="post" data-privacy-value="friends">👥 Ban be</button></li>
-                                    <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="post" data-privacy-value="private">🔒 Chi minh toi</button></li>
+                                    <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="post" data-privacy-value="public">Công khai</button></li>
+                                    <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="post" data-privacy-value="friends">Bạn bè</button></li>
+                                    <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="post" data-privacy-value="private">Chỉ mình tôi</button></li>
                                 </ul>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Vùng soạn thảo Quill -->
+                    <!-- VÃ¹ng soáº¡n tháº£o Quill -->
                     <div id="editor" style="min-height: 150px;"></div>
                     <input type="hidden" name="content" id="postContentInput">
                     <input type="hidden" name="uploaded_media_path" id="postUploadedMediaPathInput">
                     <input type="hidden" name="uploaded_media_type" id="postUploadedMediaTypeInput">
                     <input type="hidden" name="privacy_status" id="postPrivacyStatusInput" value="public">
                     
-                    <!-- Vùng hiển thị ảnh/video sau khi chọn -->
+                    <!-- VÃ¹ng hiá»ƒn thá»‹ áº£nh/video sau khi chá»n -->
                     <div id="postMediaPreviewContainer" class="mt-2 position-relative d-none">
                         <div class="border rounded p-1 bg-light">
                             <img id="imgPreview" src="#" class="img-fluid rounded d-block d-none mx-auto" style="max-height: 320px; max-width: 100%; width: auto; object-fit: contain;">
@@ -81,18 +81,18 @@
                         <div id="postUploadProgressBar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">0%</div>
                     </div>
 
-                    <!-- Thanh công cụ -->
+                    <!-- Thanh cÃ´ng cá»¥ -->
                     <div class="border rounded-3 p-2 mt-3 d-flex align-items-center justify-content-between">
                         <span class="small fw-bold ms-2">Thêm vào bài viết của bạn</span>
                         <div class="d-flex gap-1">
-                            <!-- Nút chọn ảnh -->
-                            <label for="postMedia" class="btn btn-light btn-sm rounded-circle p-2" title="Ảnh/Video">
+                            <!-- NÃºt chá»n áº£nh -->
+                            <label for="postMedia" class="btn btn-light btn-sm rounded-circle p-2" title="áº¢nh/Video">
                                 <i class="fas fa-images text-success fs-5"></i>
                             </label>
                             <input type="file" id="postMedia" name="media" class="d-none" accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime" onchange="previewMedia(this)">
                             
-                            <!-- Nút Emoji -->
-                            <button type="button" id="emojiBtn" class="btn btn-light btn-sm rounded-circle p-2" title="Cảm xúc">
+                            <!-- NÃºt Emoji -->
+                            <button type="button" id="emojiBtn" class="btn btn-light btn-sm rounded-circle p-2" title="Cáº£m xÃºc">
                                 <i class="fas fa-smile text-warning fs-5"></i>
                             </button>
                         </div>
@@ -100,47 +100,47 @@
 
                     <div id="emojiFallbackPanel" class="border rounded-3 mt-2 p-2 d-none" style="max-height: 130px; overflow-y: auto;">
                         <div class="d-flex flex-wrap gap-1" id="emojiFallbackList">
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="😀">😀</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="😁">😁</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="😂">😂</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="🤣">🤣</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="😊">😊</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="😍">😍</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="😘">😘</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="🤗">🤗</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="🤩">🤩</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="😎">😎</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="🥰">🥰</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="😢">😢</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="😭">😭</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="😡">😡</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="👍">👍</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="👏">👏</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="🙏">🙏</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="🔥">🔥</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="❤️">❤️</button>
-                            <button type="button" class="btn btn-light btn-sm" data-emoji="🎉">🎉</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ˜€">ðŸ˜€</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ˜">ðŸ˜</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ˜‚">ðŸ˜‚</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ¤£">ðŸ¤£</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ˜Š">ðŸ˜Š</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ˜">ðŸ˜</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ˜˜">ðŸ˜˜</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ¤—">ðŸ¤—</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ¤©">ðŸ¤©</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ˜Ž">ðŸ˜Ž</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ¥°">ðŸ¥°</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ˜¢">ðŸ˜¢</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ˜­">ðŸ˜­</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ˜¡">ðŸ˜¡</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ‘">ðŸ‘</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ‘">ðŸ‘</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ™">ðŸ™</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸ”¥">ðŸ”¥</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="â¤ï¸">â¤ï¸</button>
+                            <button type="button" class="btn btn-light btn-sm" data-emoji="ðŸŽ‰">ðŸŽ‰</button>
                         </div>
                     </div>
 
                     <div id="feelingQuickBar" class="border rounded-3 mt-2 p-2 d-none">
                         <div class="small text-muted mb-2">Bạn đang cảm thấy thế nào?</div>
                         <div class="d-flex flex-wrap gap-2" id="feelingQuickList">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="😊 vui vẻ">😊 Vui vẻ</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="🥰 hạnh phúc">🥰 Hạnh phúc</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="😌 bình yên">😌 Bình yên</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="🤩 hào hứng">🤩 Hào hứng</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="😢 buồn">😢 Buồn</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="😡 bực mình">😡 Bực mình</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="ðŸ˜Š vui váº»">ðŸ˜Š Vui váº»</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="ðŸ¥° háº¡nh phÃºc">ðŸ¥° Háº¡nh phÃºc</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="ðŸ˜Œ bÃ¬nh yÃªn">ðŸ˜Œ BÃ¬nh yÃªn</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="ðŸ¤© hÃ o há»©ng">ðŸ¤© HÃ o há»©ng</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="ðŸ˜¢ buá»“n">ðŸ˜¢ Buá»“n</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-feeling="ðŸ˜¡ bá»±c mÃ¬nh">ðŸ˜¡ Bá»±c mÃ¬nh</button>
                         </div>
                     </div>
                 </div>
 
                 <div class="modal-footer border-0 p-3">
-                    <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Há»§y</button>
                     <button id="postSubmitBtn" type="submit" class="btn fw-bold text-white py-2" 
                             style="background: linear-gradient(45deg, #ff85a2, #ba62ff); border-radius: 8px;">
-                        Đăng bài viết
+                        ÄÄƒng bÃ i viáº¿t
                     </button>
                 </div>
             </form>
@@ -152,7 +152,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
                 <div class="modal-header border-bottom justify-content-center position-relative">
-                    <h5 class="fw-bold m-0">Quay hoặc tải video</h5>
+                    <h5 class="fw-bold m-0">Quay hoáº·c táº£i video</h5>
                     <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal"></button>
                 </div>
 
@@ -168,12 +168,12 @@
                                 <div class="dropdown mt-1">
                                     <button id="videoPrivacyBtn" type="button" class="badge bg-light text-dark fw-normal border d-inline-flex align-items-center" style="font-size: 12px;" data-bs-toggle="dropdown" aria-expanded="false">
                                         <i id="videoPrivacyIcon" class="fas fa-globe-asia me-1"></i>
-                                        <span id="videoPrivacyLabel">Cong khai</span>
+                                        <span id="videoPrivacyLabel">Công khai</span>
                                     </button>
                                     <ul class="dropdown-menu shadow-sm">
-                                        <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="video" data-privacy-value="public">🌍 Cong khai</button></li>
-                                        <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="video" data-privacy-value="friends">👥 Ban be</button></li>
-                                        <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="video" data-privacy-value="private">🔒 Chi minh toi</button></li>
+                                        <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="video" data-privacy-value="public">Công khai</button></li>
+                                        <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="video" data-privacy-value="friends">Bạn bè</button></li>
+                                        <li><button type="button" class="dropdown-item" data-privacy-option data-privacy-target="video" data-privacy-value="private">Chỉ mình tôi</button></li>
                                     </ul>
                                 </div>
                             </div>
@@ -201,31 +201,31 @@
                             <video id="livePreviewVideo" class="w-100 rounded" style="max-height: 280px; object-fit: cover; background:#111;" autoplay muted playsinline></video>
 
                             <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
-                                <label for="liveDurationSelect" class="small text-muted mb-0">Thời lượng tối đa</label>
+                                <label for="liveDurationSelect" class="small text-muted mb-0">Thời gian tối đa</label>
                                 <select id="liveDurationSelect" class="form-select form-select-sm" style="width: 120px;">
-                                    <option value="120">2 phút</option>
-                                    <option value="180" selected>3 phút</option>
-                                    <option value="300">5 phút</option>
+                                    <option value="120">2 phÃºt</option>
+                                    <option value="180" selected>3 phÃºt</option>
+                                    <option value="300">5 phÃºt</option>
                                 </select>
 
                                 <select id="liveMusicSelect" class="form-select form-select-sm" style="min-width: 180px; max-width: 220px;">
-                                    <option value="">Không dùng nhạc</option>
+                                    <option value="">KhÃ´ng dÃ¹ng nháº¡c</option>
                                     @foreach(($hotSongs ?? collect()) as $song)
                                         <option value="{{ $song->playable_url }}">{{ $song->title }}</option>
                                     @endforeach
                                 </select>
 
-                                <label for="liveMusicVolume" class="small text-muted mb-0">Nhạc</label>
+                                <label for="liveMusicVolume" class="small text-muted mb-0">Nháº¡c</label>
                                 <input id="liveMusicVolume" type="range" min="0" max="1" step="0.05" value="0.35" style="width: 100px;">
                                 <span id="liveMusicTime" class="small text-muted">00:00 / 00:00</span>
                             </div>
 
                             <div class="d-flex gap-2 mt-2">
-                                <button type="button" id="liveStartBtn" class="btn btn-danger btn-sm">Bắt đầu quay</button>
-                                <button type="button" id="liveStopBtn" class="btn btn-secondary btn-sm" disabled>Dừng</button>
-                                <button type="button" id="liveRetakeBtn" class="btn btn-warning btn-sm d-none">Ghi hình lại</button>
-                                <button type="button" id="liveUseBtn" class="btn btn-primary btn-sm" disabled>Dùng video này</button>
-                                <button type="button" id="liveCloseBtn" class="btn btn-light btn-sm">Đóng</button>
+                                <button type="button" id="liveStartBtn" class="btn btn-danger btn-sm">Báº¯t Ä‘áº§u quay</button>
+                                <button type="button" id="liveStopBtn" class="btn btn-secondary btn-sm" disabled>Dá»«ng</button>
+                                <button type="button" id="liveRetakeBtn" class="btn btn-warning btn-sm d-none">Ghi hÃ¬nh láº¡i</button>
+                                <button type="button" id="liveUseBtn" class="btn btn-primary btn-sm" disabled>DÃ¹ng video nÃ y</button>
+                                <button type="button" id="liveCloseBtn" class="btn btn-light btn-sm">ÄÃ³ng</button>
                             </div>
 
                             <audio id="liveMusicPlayer" preload="auto" style="display:none;" playsinline></audio>
@@ -233,27 +233,27 @@
 
                         <div id="liveEditorPanel" class="border rounded-3 mt-2 p-2 d-none bg-light">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="fw-bold small">Chỉnh video trước khi đăng</span>
-                                <span id="liveEditDuration" class="badge bg-primary">Cắt: 0s → 0s</span>
+                                <span class="fw-bold small">Chá»‰nh video trÆ°á»›c khi Ä‘Äƒng</span>
+                                <span id="liveEditDuration" class="badge bg-primary">Cáº¯t: 0s â†’ 0s</span>
                             </div>
 
                             <video id="liveEditPreviewVideo" class="w-100 rounded" style="max-height: 280px; object-fit: cover; background:#111;" controls playsinline></video>
 
                             <div class="row g-2 mt-2">
                                 <div class="col-6">
-                                    <label class="form-label small fw-semibold text-dark mb-1">Bắt đầu cắt</label>
+                                    <label class="form-label small fw-semibold text-dark mb-1">Báº¯t Ä‘áº§u cáº¯t</label>
                                     <input id="liveTrimStart" type="range" min="0" max="0" value="0" class="form-range" style="accent-color:#0d6efd;">
                                     <div id="liveTrimStartLabel" class="small fw-semibold text-primary">0s</div>
                                 </div>
                                 <div class="col-6">
-                                    <label class="form-label small fw-semibold text-dark mb-1">Kết thúc cắt</label>
+                                    <label class="form-label small fw-semibold text-dark mb-1">Káº¿t thÃºc cáº¯t</label>
                                     <input id="liveTrimEnd" type="range" min="0" max="0" value="0" class="form-range" style="accent-color:#198754;">
                                     <div id="liveTrimEndLabel" class="small fw-semibold text-success">0s</div>
                                 </div>
                             </div>
 
                             <div class="mt-2">
-                                <div class="small text-muted mb-1">Vùng đã cắt</div>
+                                <div class="small text-muted mb-1">VÃ¹ng Ä‘Ã£ cáº¯t</div>
                                 <div id="liveTrimTrack" class="position-relative rounded-3 overflow-hidden" style="height: 14px; background: linear-gradient(90deg, #dee2e6 0%, #dee2e6 100%);">
                                     <div id="liveTrimTrackSelected" class="position-absolute top-0 bottom-0" style="left: 0%; width: 100%; background: linear-gradient(90deg, rgba(13,110,253,.9), rgba(25,135,84,.9));"></div>
                                     <div id="liveTrimTrackStartMarker" class="position-absolute top-0 bottom-0" style="width: 2px; left: 0%; background: #0d6efd;"></div>
@@ -261,12 +261,12 @@
                                 </div>
                             </div>
 
-                            <div id="liveTrimSummary" class="small text-muted mt-1">Độ dài đã cắt: 0s</div>
+                            <div id="liveTrimSummary" class="small text-muted mt-1">Äá»™ dÃ i Ä‘Ã£ cáº¯t: 0s</div>
 
                             <div class="d-flex gap-2 mt-2 flex-wrap">
-                                <button type="button" id="liveApplyEditBtn" class="btn btn-primary btn-sm">Áp dụng chỉnh sửa</button>
-                                <button type="button" id="liveBackToRecordBtn" class="btn btn-light btn-sm">Quay lại</button>
-                                <button type="button" id="liveUseEditedBtn" class="btn btn-success btn-sm" disabled>Dùng video đã chỉnh</button>
+                                <button type="button" id="liveApplyEditBtn" class="btn btn-primary btn-sm">Ãp dá»¥ng chá»‰nh sá»­a</button>
+                                <button type="button" id="liveBackToRecordBtn" class="btn btn-light btn-sm">Quay láº¡i</button>
+                                <button type="button" id="liveUseEditedBtn" class="btn btn-success btn-sm" disabled>DÃ¹ng video Ä‘Ã£ chá»‰nh</button>
                             </div>
                         </div>
 
@@ -276,13 +276,13 @@
                         </div>
 
                         <div class="border rounded-3 p-2 mt-3 d-flex align-items-center justify-content-between">
-                            <span class="small fw-bold ms-2">Thêm video</span>
+                            <span class="small fw-bold ms-2">ThÃªm video</span>
                             <div class="d-flex gap-1">
-                                <label for="videoMedia" class="btn btn-light btn-sm rounded-circle p-2" title="Tải video">
+                                <label for="videoMedia" class="btn btn-light btn-sm rounded-circle p-2" title="Táº£i video">
                                     <i class="fas fa-video text-danger fs-5"></i>
                                 </label>
                                 <input type="file" id="videoMedia" name="media" class="d-none" accept="video/mp4,video/webm,video/ogg,video/quicktime">
-                                <button type="button" id="liveRecordOpenBtn" class="btn btn-light btn-sm rounded-circle p-2" title="Quay video trực tiếp">
+                                <button type="button" id="liveRecordOpenBtn" class="btn btn-light btn-sm rounded-circle p-2" title="Quay video trá»±c tiáº¿p">
                                     <i class="fas fa-circle text-danger fs-5"></i>
                                 </button>
                             </div>
@@ -290,7 +290,7 @@
                     </div>
 
                     <div class="modal-footer border-0 p-3">
-                        <button id="videoSubmitBtn" type="submit" class="btn w-100 fw-bold text-white py-2" style="background: linear-gradient(45deg, #ff85a2, #ba62ff); border-radius: 8px;">Đăng video</button>
+                        <button id="videoSubmitBtn" type="submit" class="btn w-100 fw-bold text-white py-2" style="background: linear-gradient(45deg, #ff85a2, #ba62ff); border-radius: 8px;">ÄÄƒng video</button>
                     </div>
                 </form>
             </div>
@@ -299,8 +299,8 @@
 <hr>
             <div class="d-flex justify-content-around">
                 <button type="button" class="btn btn-light text-muted fw-bold border-0 bg-transparent" data-bs-toggle="modal" data-bs-target="#videoModal"><i class="fas fa-video text-danger me-2"></i>Quay video</button>
-                <button id="quickMediaBtn" type="button" class="btn btn-light text-muted fw-bold border-0 bg-transparent"><i class="fas fa-images text-success me-2"></i>Ảnh/video</button>
-                <button id="quickFeelingBtn" type="button" class="btn btn-light text-muted fw-bold border-0 bg-transparent"><i class="fas fa-smile text-warning me-2"></i>Cảm xúc</button>
+                <button id="quickMediaBtn" type="button" class="btn btn-light text-muted fw-bold border-0 bg-transparent"><i class="fas fa-images text-success me-2"></i>áº¢nh/video</button>
+                <button id="quickFeelingBtn" type="button" class="btn btn-light text-muted fw-bold border-0 bg-transparent"><i class="fas fa-smile text-warning me-2"></i>Cáº£m xÃºc</button>
             </div>
         </div>
     </div>
@@ -318,7 +318,7 @@
     @if($viewErrors->any())
         <div class="mb-2">
             @foreach($viewErrors->all() as $error)
-                <div class="alert alert-danger shadow-sm mb-2 {{ $error === 'Bài viết cần nội dung hoặc ảnh/video.' ? 'post-empty-media-alert' : '' }}">
+                <div class="alert alert-danger shadow-sm mb-2 {{ $error === 'BÃ i viáº¿t cáº§n ná»™i dung hoáº·c áº£nh/video.' ? 'post-empty-media-alert' : '' }}">
                     {{ $error }}
                 </div>
             @endforeach
@@ -350,7 +350,7 @@
                             $fullName = trim((string) ($postUser->First_name ?? '') . ' ' . (string) ($postUser->Last_name ?? ''));
                             $displayName = $fullName !== ''
                                 ? $fullName
-                                : ((string) ($postUser->name ?? $postUser->Email ?? $postUser->email ?? 'Người dùng'));
+                                : ((string) ($postUser->name ?? $postUser->Email ?? $postUser->email ?? 'NgÆ°á»i dÃ¹ng'));
                         @endphp
                         <div class="fw-bold">{{ $displayName }}</div>
                         <small class="text-muted d-inline-flex align-items-center gap-2">
@@ -360,7 +360,7 @@
                     </div>
 
                     <div class="dropdown ms-auto position-absolute top-0 end-0 mt-2 me-2">
-                        <button class="btn btn-light btn-sm rounded-circle border-0 shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Tùy chọn bài viết">
+                        <button class="btn btn-light btn-sm rounded-circle border-0 shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="TÃ¹y chá»n bÃ i viáº¿t">
                             <span class="fw-bold" style="font-size: 20px; line-height: 1;">&hellip;</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
@@ -376,10 +376,10 @@
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <form action="{{ route('post.destroy', $post->id) }}" method="POST" onsubmit="return confirm('Bạn có muốn xóa bài viết này không?');">
+                                <form action="{{ route('post.destroy', $post->id) }}" method="POST" onsubmit="return confirm('Báº¡n cÃ³ muá»‘n xÃ³a bÃ i viáº¿t nÃ y khÃ´ng?');">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="dropdown-item text-danger">Xóa video / bài viết</button>
+                                    <button type="submit" class="dropdown-item text-danger">XÃ³a video / bÃ i viáº¿t</button>
                                 </form>
                             </li>
                         </ul>
@@ -416,7 +416,7 @@
             </div>
         </div>
     @empty
-        <div class="text-center text-muted py-2">Chưa có bài viết nào.</div>
+        <div class="text-center text-muted py-2">ChÆ°a cÃ³ bÃ i viáº¿t nÃ o.</div>
     @endforelse
 
     <div class="modal fade" id="postPrivacyEditModal" tabindex="-1" aria-hidden="true">
@@ -428,9 +428,9 @@
                 </div>
                 <div class="modal-body">
                     <div class="d-flex flex-column gap-2" id="postPrivacyEditOptions">
-                        <button type="button" class="btn btn-outline-secondary text-start" data-privacy-edit-option data-privacy-value="public">🌍 Cong khai</button>
-                        <button type="button" class="btn btn-outline-secondary text-start" data-privacy-edit-option data-privacy-value="friends">👥 Ban be</button>
-                        <button type="button" class="btn btn-outline-secondary text-start" data-privacy-edit-option data-privacy-value="private">🔒 Chi minh toi</button>
+                        <button type="button" class="btn btn-outline-secondary text-start" data-privacy-edit-option data-privacy-value="public">ðŸŒ Cong khai</button>
+                        <button type="button" class="btn btn-outline-secondary text-start" data-privacy-edit-option data-privacy-value="friends">ðŸ‘¥ Ban be</button>
+                        <button type="button" class="btn btn-outline-secondary text-start" data-privacy-edit-option data-privacy-value="private">ðŸ”’ Chi minh toi</button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -489,7 +489,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         })
         .catch(function () {
-            // Không chặn trải nghiệm nếu endpoint snapshot lỗi tạm thời.
+            // KhÃ´ng cháº·n tráº£i nghiá»‡m náº¿u endpoint snapshot lá»—i táº¡m thá»i.
         });
     }, 10000);
 });
@@ -554,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!quill) {
             quill = new Quill('#editor', {
                 theme: 'snow',
-                placeholder: 'Bạn đang nghĩ gì thế?',
+                placeholder: 'Báº¡n Ä‘ang nghÄ© gÃ¬ tháº¿?',
                 modules: {
                     toolbar: [
                         ['bold', 'italic', 'underline'],
@@ -681,10 +681,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 liveTrimEnd.value = String(total);
             }
             if (liveEditDuration) {
-                liveEditDuration.textContent = 'Cắt: 0s → ' + total + 's';
+                liveEditDuration.textContent = 'Cáº¯t: 0s â†’ ' + total + 's';
             }
             if (liveTrimSummary) {
-                liveTrimSummary.textContent = 'Độ dài đã cắt: ' + total + 's';
+                liveTrimSummary.textContent = 'Äá»™ dÃ i Ä‘Ã£ cáº¯t: ' + total + 's';
             }
             setTrimLabel(0, liveTrimStartLabel);
             setTrimLabel(total, liveTrimEndLabel);
@@ -699,7 +699,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const startValue = parseInt(liveTrimStart.value || '0', 10);
             const endValue = parseInt(liveTrimEnd.value || '0', 10);
             const trimmedLength = Math.max(0, endValue - startValue);
-            liveTrimSummary.textContent = 'Độ dài đã cắt: ' + trimmedLength + 's';
+            liveTrimSummary.textContent = 'Äá»™ dÃ i Ä‘Ã£ cáº¯t: ' + trimmedLength + 's';
         }
 
         function updateTrimTrack() {
@@ -721,7 +721,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         async function renderEditedVideoFromRecordedBlob() {
             if (!liveRecordedBlob) {
-                throw new Error('Chưa có video để chỉnh sửa.');
+                throw new Error('ChÆ°a cÃ³ video Ä‘á»ƒ chá»‰nh sá»­a.');
             }
 
             const startSec = Math.max(0, parseInt((liveTrimStart && liveTrimStart.value) || '0', 10));
@@ -749,7 +749,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     resolve();
                 };
                 sourceVideo.onerror = function () {
-                    reject(new Error('Không đọc được video đã quay để chỉnh sửa.'));
+                    reject(new Error('KhÃ´ng Ä‘á»c Ä‘Æ°á»£c video Ä‘Ã£ quay Ä‘á»ƒ chá»‰nh sá»­a.'));
                 };
             });
 
@@ -787,7 +787,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     URL.revokeObjectURL(sourceUrl);
                     audioContext.close().catch(function () {});
-                    reject(new Error('Không thể xuất video đã chỉnh.'));
+                    reject(new Error('KhÃ´ng thá»ƒ xuáº¥t video Ä‘Ã£ chá»‰nh.'));
                 };
             });
 
@@ -888,11 +888,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 const feelingText = btn.getAttribute('data-feeling') || '';
-                const prefix = 'Đang cảm thấy ' + feelingText + '. ';
+                const prefix = 'Äang cáº£m tháº¥y ' + feelingText + '. ';
                 const currentText = (quill.getText() || '').trim();
 
                 quill.focus();
-                if (!currentText || currentText.indexOf('Đang cảm thấy ') !== 0) {
+                if (!currentText || currentText.indexOf('Äang cáº£m tháº¥y ') !== 0) {
                     quill.insertText(0, prefix, 'user');
                 }
 
@@ -919,7 +919,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
-                // Luôn preview bằng listener JS để tránh phụ thuộc inline onchange.
+                // LuÃ´n preview báº±ng listener JS Ä‘á»ƒ trÃ¡nh phá»¥ thuá»™c inline onchange.
                 previewMedia(mediaInput);
 
                 const fileSizeMb = file.size / (1024 * 1024);
@@ -927,14 +927,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     const overMb = fileSizeMb - MAX_MEDIA_SIZE_MB;
                     uploadFeedback.classList.remove('d-none', 'text-muted');
                     uploadFeedback.classList.add('text-danger');
-                    uploadFeedback.textContent = 'Video của bạn vượt giới hạn 2GB (vượt ' + overMb.toFixed(1) + 'MB) nên không đăng được.';
+                    uploadFeedback.textContent = 'Video cá»§a báº¡n vÆ°á»£t giá»›i háº¡n 2GB (vÆ°á»£t ' + overMb.toFixed(1) + 'MB) nÃªn khÃ´ng Ä‘Äƒng Ä‘Æ°á»£c.';
                     clearMedia();
                     return;
                 }
 
                 uploadFeedback.classList.remove('d-none', 'text-danger');
                 uploadFeedback.classList.add('text-muted');
-                uploadFeedback.textContent = 'Dung lượng tệp: ' + fileSizeMb.toFixed(1) + ' MB.';
+                uploadFeedback.textContent = 'Dung lÆ°á»£ng tá»‡p: ' + fileSizeMb.toFixed(1) + ' MB.';
             });
         }
 
@@ -961,7 +961,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (uploadFeedback) {
                             uploadFeedback.classList.remove('d-none', 'text-danger');
                             uploadFeedback.classList.add('text-muted');
-                            uploadFeedback.textContent = 'Đang tải ảnh/video theo từng phần...';
+                            uploadFeedback.textContent = 'Äang táº£i áº£nh/video theo tá»«ng pháº§n...';
                         }
                         if (progressWrap && progressBar) {
                             progressWrap.classList.remove('d-none');
@@ -984,19 +984,19 @@ document.addEventListener('DOMContentLoaded', function () {
                             uploadedMediaTypeInput.value = uploadResult.media_type || '';
                         }
 
-                        // Tránh submit lại file lớn lần 2.
+                        // TrÃ¡nh submit láº¡i file lá»›n láº§n 2.
                         mediaInput.value = '';
                     }
 
                     if (uploadFeedback) {
                         uploadFeedback.classList.remove('d-none', 'text-danger');
                         uploadFeedback.classList.add('text-muted');
-                        uploadFeedback.textContent = 'Đang tạo bài viết...';
+                        uploadFeedback.textContent = 'Äang táº¡o bÃ i viáº¿t...';
                     }
 
                     if (submitBtn) {
                         submitBtn.disabled = true;
-                        submitBtn.textContent = 'Đang đăng...';
+                        submitBtn.textContent = 'Äang Ä‘Äƒng...';
                     }
 
                     form.dataset.processingUpload = '0';
@@ -1007,11 +1007,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (uploadFeedback) {
                         uploadFeedback.classList.remove('d-none', 'text-muted');
                         uploadFeedback.classList.add('text-danger');
-                        uploadFeedback.textContent = error && error.message ? error.message : 'Tải video thất bại. Vui lòng thử lại.';
+                        uploadFeedback.textContent = error && error.message ? error.message : 'Táº£i video tháº¥t báº¡i. Vui lÃ²ng thá»­ láº¡i.';
                     }
                     if (submitBtn) {
                         submitBtn.disabled = false;
-                        submitBtn.textContent = 'Đăng bài viết';
+                        submitBtn.textContent = 'ÄÄƒng bÃ i viáº¿t';
                     }
                     if (progressWrap) {
                         progressWrap.classList.add('d-none');
@@ -1034,7 +1034,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const objectUrl = URL.createObjectURL(file);
         container.classList.remove('d-none');
 
-        // Reset hiển thị để tránh trạng thái cũ bị kẹt.
+        // Reset hiá»ƒn thá»‹ Ä‘á»ƒ trÃ¡nh tráº¡ng thÃ¡i cÅ© bá»‹ káº¹t.
         img.classList.add('d-none');
         video.classList.add('d-none');
 
@@ -1142,7 +1142,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function getAdaptiveConcurrency() {
-        // Safe mode: luôn upload tuần tự để tránh missing chunk trên môi trường mạng/host không ổn định.
+        // Safe mode: luÃ´n upload tuáº§n tá»± Ä‘á»ƒ trÃ¡nh missing chunk trÃªn mÃ´i trÆ°á»ng máº¡ng/host khÃ´ng á»•n Ä‘á»‹nh.
         return 1;
     }
 
@@ -1166,7 +1166,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function uploadFileInChunks(file, chunkUrl, completeUrl, csrfToken, progressBar, uploadFeedback) {
         if (!chunkUrl || !completeUrl) {
-            throw new Error('Thiếu cấu hình upload chunk trên form.');
+            throw new Error('Thiáº¿u cáº¥u hÃ¬nh upload chunk trÃªn form.');
         }
 
         const uploadId = Date.now().toString() + '_' + Math.random().toString(36).slice(2, 10);
@@ -1203,7 +1203,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (!response) {
                     if (attempt === 6) {
-                        throw new Error('Không thể tải dữ liệu video lên server. Vui lòng thử lại.');
+                        throw new Error('KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u video lÃªn server. Vui lÃ²ng thá»­ láº¡i.');
                     }
 
                     await new Promise(function (resolve) {
@@ -1226,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (!ackOk || !ackIndexMatches) {
                     if (attempt === 6) {
-                        throw new Error('Server chưa xác nhận đủ dữ liệu video. Vui lòng thử lại.');
+                        throw new Error('Server chÆ°a xÃ¡c nháº­n Ä‘á»§ dá»¯ liá»‡u video. Vui lÃ²ng thá»­ láº¡i.');
                     }
 
                     await new Promise(function (resolve) {
@@ -1247,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (uploadFeedback) {
                     uploadFeedback.classList.remove('d-none', 'text-danger');
                     uploadFeedback.classList.add('text-muted');
-                    uploadFeedback.textContent = 'Đang tải lên: ' + percent + '%';
+                    uploadFeedback.textContent = 'Äang táº£i lÃªn: ' + percent + '%';
                 }
                 return;
             }
@@ -1277,7 +1277,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (uploadFeedback) {
                 uploadFeedback.classList.remove('d-none', 'text-danger');
                 uploadFeedback.classList.add('text-muted');
-                uploadFeedback.textContent = 'Đang ghép file trên server...';
+                uploadFeedback.textContent = 'Äang ghÃ©p file trÃªn server...';
             }
 
             const completeForm = new FormData();
@@ -1301,7 +1301,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return {
                     ok: false,
                     data: {
-                        message: 'Server đang bận ghép video, đang thử lại...'
+                        message: 'Server Ä‘ang báº­n ghÃ©p video, Ä‘ang thá»­ láº¡i...'
                     }
                 };
             }
@@ -1330,7 +1330,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (uploadFeedback) {
                     uploadFeedback.classList.remove('d-none', 'text-danger');
                     uploadFeedback.classList.add('text-muted');
-                    uploadFeedback.textContent = 'Đã tải lên: 100%';
+                    uploadFeedback.textContent = 'ÄÃ£ táº£i lÃªn: 100%';
                 }
                 return completeData;
             }
@@ -1340,7 +1340,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 : (typeof completeData.missing_chunk === 'number' ? [completeData.missing_chunk] : []);
 
             if (missingChunks.length === 0) {
-                // Nếu server chưa trả danh sách chunk thiếu, thử lại complete nhiều lần trước khi fail.
+                // Náº¿u server chÆ°a tráº£ danh sÃ¡ch chunk thiáº¿u, thá»­ láº¡i complete nhiá»u láº§n trÆ°á»›c khi fail.
                 await new Promise(function (resolve) {
                     setTimeout(resolve, 500 * completeTry);
                 });
@@ -1350,25 +1350,25 @@ document.addEventListener('DOMContentLoaded', function () {
             if (uploadFeedback) {
                 uploadFeedback.classList.remove('d-none', 'text-danger');
                 uploadFeedback.classList.add('text-muted');
-                uploadFeedback.textContent = 'Đang tự động tải bù ' + missingChunks.length + ' phần còn thiếu...';
+                uploadFeedback.textContent = 'Äang tá»± Ä‘á»™ng táº£i bÃ¹ ' + missingChunks.length + ' pháº§n cÃ²n thiáº¿u...';
             }
 
             for (let i = 0; i < missingChunks.length; i++) {
                 await uploadOneChunk(missingChunks[i]);
             }
 
-            // Lần gần cuối vẫn còn thiếu -> đồng bộ lại toàn bộ chunk 1 lượt để tránh lỗi mất gói ngẫu nhiên.
+            // Láº§n gáº§n cuá»‘i váº«n cÃ²n thiáº¿u -> Ä‘á»“ng bá»™ láº¡i toÃ n bá»™ chunk 1 lÆ°á»£t Ä‘á»ƒ trÃ¡nh lá»—i máº¥t gÃ³i ngáº«u nhiÃªn.
             if (completeTry === COMPLETE_RETRY_LIMIT - 1) {
                 if (uploadFeedback) {
                     uploadFeedback.classList.remove('d-none', 'text-danger');
                     uploadFeedback.classList.add('text-muted');
-                    uploadFeedback.textContent = 'Đang đồng bộ lại toàn bộ dữ liệu video...';
+                    uploadFeedback.textContent = 'Äang Ä‘á»“ng bá»™ láº¡i toÃ n bá»™ dá»¯ liá»‡u video...';
                 }
                 await reuploadAllChunksOnce();
             }
         }
 
-        throw new Error('Không thể hoàn tất upload video lúc này. Vui lòng thử lại sau ít phút.');
+        throw new Error('KhÃ´ng thá»ƒ hoÃ n táº¥t upload video lÃºc nÃ y. Vui lÃ²ng thá»­ láº¡i sau Ã­t phÃºt.');
     }
 
     document.addEventListener('DOMContentLoaded', initComposer);
@@ -1383,7 +1383,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const videoQuill = new Quill('#videoEditor', {
         theme: 'snow',
-        placeholder: 'Thêm mô tả cho video của bạn...',
+        placeholder: 'ThÃªm mÃ´ táº£ cho video cá»§a báº¡n...',
         modules: {
             toolbar: [
                 ['bold', 'italic', 'underline'],
@@ -1499,14 +1499,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 const overMb = fileSizeMb - 2048;
                 uploadFeedback.classList.remove('d-none', 'text-muted');
                 uploadFeedback.classList.add('text-danger');
-                uploadFeedback.textContent = 'Video vượt giới hạn 2GB (vượt ' + overMb.toFixed(1) + 'MB).';
+                uploadFeedback.textContent = 'Video vÆ°á»£t giá»›i háº¡n 2GB (vÆ°á»£t ' + overMb.toFixed(1) + 'MB).';
                 clearVideoMedia();
                 return;
             }
 
             uploadFeedback.classList.remove('d-none', 'text-danger');
             uploadFeedback.classList.add('text-muted');
-            uploadFeedback.textContent = 'Dung lượng tệp: ' + fileSizeMb.toFixed(1) + ' MB.';
+            uploadFeedback.textContent = 'Dung lÆ°á»£ng tá»‡p: ' + fileSizeMb.toFixed(1) + ' MB.';
             previewVideoMedia(mediaInput);
         });
     }
@@ -1531,7 +1531,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (uploadFeedback) {
                         uploadFeedback.classList.remove('d-none', 'text-danger');
                         uploadFeedback.classList.add('text-muted');
-                        uploadFeedback.textContent = 'Đang tải video...';
+                        uploadFeedback.textContent = 'Äang táº£i video...';
                     }
                     if (progressWrap && progressBar) {
                         progressWrap.classList.remove('d-none');
@@ -1560,12 +1560,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (uploadFeedback) {
                     uploadFeedback.classList.remove('d-none', 'text-danger');
                     uploadFeedback.classList.add('text-muted');
-                    uploadFeedback.textContent = 'Đang tạo bài viết video...';
+                    uploadFeedback.textContent = 'Äang táº¡o bÃ i viáº¿t video...';
                 }
 
                 if (submitBtn) {
                     submitBtn.disabled = true;
-                    submitBtn.textContent = 'Đang đăng...';
+                    submitBtn.textContent = 'Äang Ä‘Äƒng...';
                 }
 
                 form.dataset.processingUpload = '0';
@@ -1576,11 +1576,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (uploadFeedback) {
                     uploadFeedback.classList.remove('d-none', 'text-muted');
                     uploadFeedback.classList.add('text-danger');
-                    uploadFeedback.textContent = error && error.message ? error.message : 'Tải video thất bại.';
+                    uploadFeedback.textContent = error && error.message ? error.message : 'Táº£i video tháº¥t báº¡i.';
                 }
                 if (submitBtn) {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Đăng video';
+                    submitBtn.textContent = 'ÄÄƒng video';
                 }
                 if (progressWrap) {
                     progressWrap.classList.add('d-none');

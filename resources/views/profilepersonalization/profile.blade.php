@@ -687,7 +687,7 @@
     <div id="profileTabLayout" class="pp-main-grid mt-3">
         <div>
             <div class="pp-bento-card p-3 mb-3" data-tab-section="gioi-thieu">
-                <h5 class="fw-bold mb-3">Gioi thieu</h5>
+                <h5 class="fw-bold mb-3">Giới thiệu</h5>
                 @php
                     $relationshipValue = optional($currentUser)->relationship;
                     $relationshipMeta = ['label' => 'Chưa cập nhật', 'class' => 'bg-light text-muted border', 'icon' => 'fa-heart'];
@@ -751,7 +751,7 @@
 
             <div class="pp-bento-card p-3 mb-3" data-tab-section="gioi-thieu">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0">ạn bè</h5>
+                    <h5 class="fw-bold mb-0">Bạn bè</h5>
                     <button type="button" class="btn btn-link text-decoration-none p-0" data-switch-tab="ban-be">Xem tất cả</button>
                 </div>
 

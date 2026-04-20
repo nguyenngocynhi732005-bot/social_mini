@@ -1,7 +1,7 @@
 <div class="pp-bento-card p-3 mb-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold mb-0">Anh</h5>
-        <span class="small text-muted">{{ ($photosData ?? collect())->count() }} anh</span>
+        <h5 class="fw-bold mb-0">Ảnh</h5>
+        <span class="small text-muted">{{ ($photosData ?? collect())->count() }} ảnh</span>
     </div>
 
     <div class="row g-2">
@@ -21,7 +21,7 @@
             @endif
         @empty
             <div class="col-12">
-                <div class="alert alert-light border mb-0">Chua co anh nao (post_type = image).</div>
+                <div class="alert alert-light border mb-0">Chưa có ảnh nào (post_type = image).</div>
             </div>
         @endforelse
     </div>
