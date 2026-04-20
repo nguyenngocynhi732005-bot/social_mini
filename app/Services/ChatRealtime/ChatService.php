@@ -9,6 +9,7 @@ use App\Models\ConversationParticipant;
 // Sau này An sẽ thêm Event Realtime ở đây [cite: 45]
 use App\Events\ChatRealtime\MessageSent;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -33,6 +34,16 @@ class ChatService
         $userIds = [$firstUserId, $secondUserId];
         sort($userIds);
 
+        $cacheKey = sprintf('chat:private-conversation:%d:%d', $userIds[0], $userIds[1]);
+        $cachedConversationId = (int) Cache::get($cacheKey, 0);
+
+        if ($cachedConversationId > 0) {
+            $cachedConversation = Conversation::query()->find($cachedConversationId);
+            if ($cachedConversation) {
+                return $cachedConversation;
+            }
+        }
+
         $query = Conversation::query()
             ->select('conversations.id')
             ->join('conversation_participants as cp', 'cp.conversation_id', '=', 'conversations.id')
@@ -47,10 +58,12 @@ class ChatService
         $conversationId = $query->value('conversations.id');
 
         if ($conversationId) {
+            Cache::put($cacheKey, (int) $conversationId, now()->addMinutes(30));
+
             return Conversation::query()->findOrFail($conversationId);
         }
 
-        return DB::transaction(function () use ($userIds) {
+        $conversation = DB::transaction(function () use ($userIds) {
             $conversationData = [];
             if (Schema::hasColumn('conversations', 'type')) {
                 $conversationData['type'] = 'private';
@@ -80,6 +93,10 @@ class ChatService
 
             return $conversation;
         });
+
+        Cache::put($cacheKey, (int) $conversation->id, now()->addMinutes(30));
+
+        return $conversation;
     }
 
     /**

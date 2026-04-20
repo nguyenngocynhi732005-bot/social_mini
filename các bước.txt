@@ -49,3 +49,94 @@ Testing: Viết các bản Feature Test để đảm bảo khi bạn sửa code 
 php artisan serve
 npm run watch
 php artisan websockets:serve
+
+----
+Optimizing tool selection...Mình sẽ hướng dẫn theo checklist chạy thật từ đăng ký đến vào chat, kèm cách xác nhận đúng là chat đang dùng ID user đăng nhập. Sau đó mình thêm phần test 2 tài khoản để bạn kiểm tra gửi nhận end-to-end.OK, mình gửi bạn quy trình test đầy đủ từ đầu đến cuối, làm theo là kiểm tra được luồng đăng ký → đăng nhập → vào mạng xã hội → vào chat.
+
+**1. Chuẩn bị môi trường chạy**
+1. Mở terminal tại thư mục dự án.
+2. Chạy cài thư viện PHP: composer install
+3. Chạy cài thư viện JS: npm install
+4. Nếu chưa có file .env: copy từ .env.example
+5. Tạo app key: php artisan key:generate
+6. Chạy migrate: php artisan migrate
+7. Chạy link storage (nếu chưa): php artisan storage:link
+8. Build frontend:
+1. npm run dev (khi dev)
+2. hoặc npm run prod (khi muốn build production)
+9. Chạy server Laravel: php artisan serve
+
+Nếu bạn dùng realtime websocket nội bộ thì mở thêm 1 terminal chạy websocket server theo cấu hình team bạn đang dùng.
+
+**2. Test đăng ký tài khoản**
+1. Truy cập trang đăng ký.
+2. Nhập đầy đủ thông tin bắt buộc:
+1. Name
+2. Email
+3. Password + Confirm password
+4. BirthDate
+3. Submit form.
+4. Kết quả mong đợi:
+1. Tạo user thành công trong DB
+2. Tự đăng nhập luôn
+3. Redirect vào trang mạng xã hội (trang chủ)
+
+**3. Test đăng nhập lại**
+1. Đăng xuất.
+2. Vào trang đăng nhập.
+3. Nhập Email và Password vừa tạo.
+4. Kết quả mong đợi:
+1. Đăng nhập thành công
+2. Về trang mạng xã hội
+3. Session còn hiệu lực khi chuyển trang
+
+**4. Test vào trang mạng xã hội**
+1. Ở trạng thái đã login, vào trang chủ mạng xã hội.
+2. Kiểm tra các nút điều hướng chính hoạt động (newsfeed, videos, friends).
+3. Kết quả mong đợi:
+1. Không bị đá về login
+2. Header/menu hiển thị bình thường
+3. Không lỗi 500/419 trên console/network
+
+**5. Test vào giao diện chat**
+1. Khi đang login, truy cập trang chat test.
+2. Kết quả mong đợi:
+1. Mở được giao diện chat
+2. Không báo thiếu sender khi người dùng đã đăng nhập
+3. Load được danh sách hội thoại hoặc danh sách user có thể chat
+
+**6. Xác nhận chat dùng đúng ID người đăng nhập**
+1. Mở DevTools, inspect thẻ root của chat (thẻ chứa toàn bộ app chat).
+2. Kiểm tra data-sender-id và data-current-user-id.
+3. Kết quả mong đợi:
+1. Giá trị là ID của user đang đăng nhập
+2. Khi gửi tin nhắn, sender_id lưu vào DB phải đúng ID đó
+
+Bạn có thể kiểm tra DB:
+- Bảng chat_messages, cột sender_id
+- Tin nhắn mới gửi phải có sender_id bằng user hiện tại
+
+**7. Test end-to-end với 2 tài khoản**
+1. Tạo 2 tài khoản A và B.
+2. Mở 2 trình duyệt:
+1. Cửa sổ thường login A
+2. Cửa sổ ẩn danh login B
+3. A gửi tin nhắn cho B.
+4. B kiểm tra nhận tin nhắn.
+5. B trả lời lại A.
+6. Kết quả mong đợi:
+1. Hai bên thấy tin nhắn đúng chiều
+2. Tên/avatar hiển thị đúng người gửi
+3. sender_id của mỗi tin đúng tài khoản tương ứng
+
+**8. Các case nên test thêm (nhanh nhưng quan trọng)**
+1. Chưa đăng nhập mà vào chat:
+1. Kỳ vọng bị chặn và chuyển login
+2. Gửi tin nhắn rỗng:
+1. Kỳ vọng báo validate error
+3. Gửi ảnh/âm thanh:
+1. Kỳ vọng lưu file và hiển thị đúng type
+4. Thu hồi tin:
+1. Kỳ vọng chỉ người gửi được thu hồi
+
+Nếu bạn muốn, mình có thể gửi luôn một test checklist dạng bảng pass/fail để bạn hoặc team tick trực tiếp trong buổi demo.

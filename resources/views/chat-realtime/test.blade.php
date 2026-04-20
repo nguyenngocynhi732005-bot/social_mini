@@ -5,15 +5,17 @@ $testConversationId = (int) request()->query('conversation_id', 0);
 if ($testConversationId <= 0) {
     $testConversationId=(int) \App\Models\Conversation::query()->orderBy('id')->value('id');
     }
+
+    $authUser = auth()->user();
+    $currentUserId = (int) (optional($authUser)->ID ?? auth()->id() ?? 0);
+
     $defaultSenderId = \App\Models\User::query()->orderBy('ID')->value('ID') ?? 1;
-    $currentUserId = auth()->id() ?? 0;
     $requestedSenderId = (int) request()->query('sender_id', 0);
-    $isTestMode = $requestedSenderId > 0;
-    $candidateSenderId = $requestedSenderId > 0 ? $requestedSenderId : ($currentUserId ?: $defaultSenderId);
+    $isTestMode = app()->environment('local') && $requestedSenderId > 0;
+    $candidateSenderId = $isTestMode ? $requestedSenderId : ($currentUserId ?: $defaultSenderId);
+
     $activeUser = \App\Models\User::query()
     ->where('ID', $candidateSenderId)
-    ->orWhere('unique_id', $candidateSenderId)
-    ->orWhere('user_id', $candidateSenderId)
     ->first();
 
     if (!$activeUser) {
@@ -36,6 +38,10 @@ if ($testConversationId <= 0) {
     }
     @endphp
 
+    <script>
+        document.title = 'VibeTalk';
+    </script>
+
     <div id="ig-chat-app"
         data-current-user-id="{{ $isTestMode ? $activeSenderId : $currentUserId }}"
         data-sender-id="{{ $activeSenderId }}"
@@ -46,6 +52,10 @@ if ($testConversationId <= 0) {
         data-conversations-url="{{ route('chat.conversations.index') }}"
         data-messages-url-template="{{ url('/chat/conversations/__ID__/messages') }}"
         data-background-url-template="{{ url('/chat/conversations/__ID__/background') }}"
+        data-call-signal-url-template="{{ url('/chat/conversations/__ID__/call-signal') }}"
+        data-call-signal-latest-url-template="{{ url('/chat/conversations/__ID__/call-signal/latest') }}"
+        data-typing-url-template="{{ url('/chat/conversations/__ID__/typing') }}"
+        data-typing-latest-url-template="{{ url('/chat/conversations/__ID__/typing/latest') }}"
         data-zego-app-id="{{ $zegoAppId }}"
         data-zego-server-secret="{{ $zegoServerSecret }}">
         <section class="ig-sidebar">
@@ -58,11 +68,12 @@ if ($testConversationId <= 0) {
                     </a>
                     <h1>{{ $displayUsername }}</h1>
                 </div>
-                <button type="button" class="ig-compose" aria-label="New message">
-                    <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </button>
+                <div class="ig-sidebar-head-actions">
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="ig-logout-btn" aria-label="Đăng xuất">Đăng xuất</button>
+                    </form>
+                </div>
             </div>
             <label class="ig-search-wrap" for="ig-search-input">
                 <svg viewBox="0 0 24 24" fill="none">
@@ -73,7 +84,6 @@ if ($testConversationId <= 0) {
             </label>
             <div class="ig-inbox-head">
                 <strong>Tin nhắn</strong>
-                <span>Tin nhắn đang chờ</span>
             </div>
             <div id="conversation-list" class="ig-conversation-list" role="list"></div>
         </section>
@@ -81,7 +91,7 @@ if ($testConversationId <= 0) {
         <section class="ig-thread">
             <header class="ig-thread-head" id="thread-head">
                 <div class="ig-thread-user">
-                    <img id="thread-avatar" src="https://ui-avatars.com/api/?name=Instagram&background=edeef0&color=1f2937" alt="Avatar">
+                    <img id="thread-avatar" src="https://ui-avatars.com/api/?name=VibeTalk&background=edeef0&color=1f2937" alt="Avatar">
                     <div>
                         <h2 id="thread-name">Chọn cuộc trò chuyện</h2>
                         <p id="thread-status">Bắt đầu nhắn tin trong khung bên dưới</p>
@@ -109,11 +119,18 @@ if ($testConversationId <= 0) {
 
             <main id="chat-box" class="ig-messages" aria-live="polite">
                 <section id="ig-thread-intro" class="ig-thread-intro">
-                    <img id="intro-avatar" src="https://ui-avatars.com/api/?name=Instagram&background=dfe3e8&color=111827" alt="Avatar">
-                    <h3 id="intro-name">Instagram</h3>
-                    <p id="intro-handle">instagram</p>
+                    <img id="intro-avatar" src="https://ui-avatars.com/api/?name=VibeTalk&background=dfe3e8&color=111827" alt="Avatar">
+                    <h3 id="intro-name">VibeTalk</h3>
+                    <p id="intro-handle">vibetalk</p>
                     <button type="button">Xem trang cá nhân</button>
                 </section>
+                <div id="ig-typing-indicator" class="ig-typing-indicator" hidden>
+                    <span class="ig-typing-indicator-bubble" aria-label="Đang soạn tin">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </span>
+                </div>
             </main>
 
             <form id="composer-form" class="ig-composer" autocomplete="off">
@@ -181,6 +198,17 @@ if ($testConversationId <= 0) {
                             <button type="button" id="zego-call-close" aria-label="Kết thúc cuộc gọi">Kết thúc</button>
                         </div>
                         <div class="ig-call-container" id="zego-call-container"></div>
+                    </div>
+                </div>
+                <div class="ig-incoming-call-modal" id="incoming-call-modal" hidden>
+                    <div class="ig-incoming-call-card" role="dialog" aria-label="Cuộc gọi đến">
+                        <p class="ig-incoming-call-label">Cuộc gọi đến</p>
+                        <strong id="incoming-call-caller">Ai đó đang gọi...</strong>
+                        <p id="incoming-call-type">Cuộc gọi video</p>
+                        <div class="ig-incoming-call-actions">
+                            <button type="button" id="incoming-call-reject" class="is-reject">Từ chối</button>
+                            <button type="button" id="incoming-call-accept" class="is-accept">Nghe máy</button>
+                        </div>
                     </div>
                 </div>
                 <div class="ig-reaction-picker" id="reaction-picker" hidden>
@@ -288,7 +316,7 @@ if ($testConversationId <= 0) {
             --ig-border: #e5d1df;
             --ig-muted: #f6dff0;
             --ig-text: #2a2230;
-            --ig-sidebar-bg: radial-gradient(130% 145% at 100% 0%, #1e56b2 0%, #613dc7 40%, #b93493 76%, #aa67a9 100%);
+            --ig-sidebar-bg: linear-gradient(180deg, #4a35bf 0%, #4d3fc8 28%, #6142cf 52%, #c023b0 74%, #c44190 100%);
             --ig-sidebar-item-hover: rgba(255, 255, 255, 0.18);
             --ig-sidebar-item-active: rgba(255, 255, 255, 0.30);
             --ig-bubble-me: #ffffff;
@@ -342,6 +370,12 @@ if ($testConversationId <= 0) {
             color: #ffffff;
         }
 
+        .ig-sidebar-head-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .ig-user-row {
             display: flex;
             align-items: center;
@@ -369,18 +403,19 @@ if ($testConversationId <= 0) {
             background: rgba(255, 255, 255, 0.18);
         }
 
-        .ig-compose {
-            border: 0;
-            background: transparent;
-            width: 28px;
-            height: 28px;
-            cursor: pointer;
+        .ig-logout-btn {
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            background: rgba(255, 255, 255, 0.14);
             color: #ffffff;
+            border-radius: 999px;
+            padding: 6px 11px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
         }
 
-        .ig-compose svg {
-            width: 24px;
-            height: 24px;
+        .ig-logout-btn:hover {
+            background: rgba(255, 255, 255, 0.24);
         }
 
         .ig-search-wrap {
@@ -493,6 +528,34 @@ if ($testConversationId <= 0) {
             border-radius: 50%;
             object-fit: cover;
             border: 1px solid #ececec;
+        }
+
+        .ig-conversation-avatar-wrap {
+            position: relative;
+            width: 56px;
+            height: 56px;
+            flex: 0 0 auto;
+        }
+
+        .ig-conversation-avatar-wrap .ig-conversation-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #ececec;
+            display: block;
+        }
+
+        .ig-conversation-active-dot {
+            position: absolute;
+            right: 1px;
+            bottom: 1px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #22c55e;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
         }
 
         .ig-conversation-main {
@@ -636,6 +699,57 @@ if ($testConversationId <= 0) {
             cursor: pointer;
         }
 
+        .ig-typing-indicator {
+            align-self: flex-start;
+            margin: 4px 0 10px 40px;
+        }
+
+        .ig-typing-indicator[hidden] {
+            display: none !important;
+        }
+
+        .ig-typing-indicator-bubble {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 1px rgba(15, 23, 42, 0.05);
+        }
+
+        .ig-typing-indicator-bubble span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #9ca3af;
+            animation: igTypingPulse 1.1s infinite ease-in-out;
+        }
+
+        .ig-typing-indicator-bubble span:nth-child(2) {
+            animation-delay: 0.18s;
+        }
+
+        .ig-typing-indicator-bubble span:nth-child(3) {
+            animation-delay: 0.36s;
+        }
+
+        @keyframes igTypingPulse {
+
+            0%,
+            80%,
+            100% {
+                opacity: 0.35;
+                transform: translateY(0);
+            }
+
+            40% {
+                opacity: 1;
+                transform: translateY(-1px);
+            }
+        }
+
         .ig-message-row {
             display: flex;
             max-width: min(70%, 560px);
@@ -717,6 +831,38 @@ if ($testConversationId <= 0) {
             gap: 8px;
             pointer-events: none;
             min-height: 18px;
+        }
+
+        .ig-message-send-status {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            font-size: 11px;
+            line-height: 1;
+            font-weight: 700;
+            flex: 0 0 auto;
+        }
+
+        .ig-message-send-status.is-pending {
+            color: #9ca3af;
+            background: rgba(156, 163, 175, 0.12);
+        }
+
+        .ig-message-send-status.is-error {
+            color: #ffffff;
+            background: #dc2626;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+        }
+
+        .ig-message-row.is-sending {
+            opacity: 0.78;
+        }
+
+        .ig-message-row.is-send-error .ig-message-wrapper {
+            box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.18);
         }
 
         .ig-message-row.me .ig-message-meta {
@@ -921,6 +1067,78 @@ if ($testConversationId <= 0) {
             width: 100%;
             height: 100%;
             min-height: 0;
+        }
+
+        .ig-incoming-call-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.35);
+            display: grid;
+            place-items: center;
+            z-index: 1200;
+            padding: 16px;
+        }
+
+        .ig-incoming-call-modal[hidden] {
+            display: none !important;
+        }
+
+        .ig-incoming-call-card {
+            width: min(360px, calc(100vw - 32px));
+            border-radius: 20px;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            color: #e5e7eb;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.48);
+            padding: 22px;
+            text-align: center;
+            display: grid;
+            gap: 8px;
+        }
+
+        .ig-incoming-call-label {
+            margin: 0;
+            font-size: 13px;
+            color: #93c5fd;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        #incoming-call-caller {
+            font-size: 24px;
+            line-height: 1.2;
+        }
+
+        #incoming-call-type {
+            margin: 0;
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        .ig-incoming-call-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .ig-incoming-call-actions button {
+            border: 0;
+            border-radius: 999px;
+            min-width: 116px;
+            padding: 10px 14px;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .ig-incoming-call-actions .is-reject {
+            background: #ef4444;
+        }
+
+        .ig-incoming-call-actions .is-accept {
+            background: #10b981;
         }
 
         .ig-message-row.them .ig-message-content {
@@ -1505,6 +1723,7 @@ if ($testConversationId <= 0) {
                 searchInput: document.getElementById('ig-search-input'),
                 conversationList: document.getElementById('conversation-list'),
                 chatBox: document.getElementById('chat-box'),
+                typingIndicator: document.getElementById('ig-typing-indicator'),
                 bgImageBtn: document.getElementById('bg-image-btn'),
                 bgImageClearBtn: document.getElementById('bg-image-clear-btn'),
                 bgImageInput: document.getElementById('bg-image-input'),
@@ -1527,6 +1746,11 @@ if ($testConversationId <= 0) {
                 zegoCallCloseBtn: document.getElementById('zego-call-close'),
                 zegoCallTitle: document.getElementById('zego-call-title'),
                 zegoRoomLabel: document.getElementById('zego-room-label'),
+                incomingCallModal: document.getElementById('incoming-call-modal'),
+                incomingCallCaller: document.getElementById('incoming-call-caller'),
+                incomingCallType: document.getElementById('incoming-call-type'),
+                incomingCallAcceptBtn: document.getElementById('incoming-call-accept'),
+                incomingCallRejectBtn: document.getElementById('incoming-call-reject'),
                 intro: document.getElementById('ig-thread-intro'),
                 threadName: document.getElementById('thread-name'),
                 threadStatus: document.getElementById('thread-status'),
@@ -1561,11 +1785,23 @@ if ($testConversationId <= 0) {
                 conversationsUrl: app.dataset.conversationsUrl,
                 messagesUrlTemplate: app.dataset.messagesUrlTemplate,
                 backgroundUrlTemplate: app.dataset.backgroundUrlTemplate,
+                callSignalUrlTemplate: app.dataset.callSignalUrlTemplate,
+                callSignalLatestUrlTemplate: app.dataset.callSignalLatestUrlTemplate,
+                typingUrlTemplate: app.dataset.typingUrlTemplate,
+                typingLatestUrlTemplate: app.dataset.typingLatestUrlTemplate,
                 activeConversationId: null,
-                activeConversationName: 'Instagram',
-                activeConversationAvatar: avatarUrl('Instagram'),
+                activePeerId: null,
+                activeConversationName: 'VibeTalk',
+                activeConversationAvatar: avatarUrl('VibeTalk'),
                 conversations: [],
+                messageCache: {},
                 seenMessageIds: new Set(),
+                messagesMeta: {
+                    has_more: false,
+                    next_before_id: null,
+                    limit: 20,
+                },
+                loadingOlderMessages: false,
                 searchKeyword: '',
                 lastTimelineMessageAt: null,
                 activeReactionCategory: 'smile',
@@ -1578,9 +1814,31 @@ if ($testConversationId <= 0) {
                 voiceShouldSend: true,
                 zegoCallInstance: null,
                 zegoCallType: null,
+                activeCallRoomId: null,
+                incomingCall: null,
+                lastCallSignalAt: null,
+                lastTypingSignalAt: null,
                 unsubscribeRealtime: null,
                 pollingTimer: null,
+                callPollingTimer: null,
             };
+
+            let localMessageSequence = 0;
+            let typingStopTimer = null;
+            let typingStatusResetTimer = null;
+            let typingLastSentState = false;
+            let typingLastSentAt = 0;
+            const typingPreviewByConversation = new Map();
+            const typingPreviewResetTimers = new Map();
+
+            const MESSAGE_PAGE_SIZE = 20;
+            const TYPING_IDLE_MS = 1400;
+            const TYPING_STATUS_RESET_MS = 2600;
+            const TYPING_THROTTLE_MS = 900;
+
+            const usePublicRealtimeChannel = window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1' ||
+                state.testMode;
 
             const zegoConfig = {
                 appId: Number(app.dataset.zegoAppId) || 0,
@@ -1589,6 +1847,7 @@ if ($testConversationId <= 0) {
 
             const CHAT_QUICK_REACTION_STORAGE_KEY = 'ig_chat_quick_reaction';
             const CHAT_SYNC_STORAGE_KEY = 'ig_chat_sync_event';
+            const CHAT_CALL_SYNC_STORAGE_KEY = 'ig_chat_call_sync_event';
             const STICKER_TOKEN_PREFIX = '[STICKER:';
             const STICKER_TOKEN_SUFFIX = ']';
 
@@ -1649,13 +1908,238 @@ if ($testConversationId <= 0) {
                 }
             }
 
-            function endZegoCall() {
+            function closeIncomingCallModal() {
+                state.incomingCall = null;
+                if (dom.incomingCallModal) {
+                    dom.incomingCallModal.hidden = true;
+                }
+            }
+
+            function openIncomingCallModal(payload) {
+                state.incomingCall = payload || null;
+                if (!dom.incomingCallModal || !payload) {
+                    return;
+                }
+
+                if (dom.incomingCallCaller) {
+                    dom.incomingCallCaller.textContent = payload.caller_name || 'Ai đó';
+                }
+                if (dom.incomingCallType) {
+                    dom.incomingCallType.textContent = payload.call_type === 'voice' ? 'Cuộc gọi thoại' : 'Cuộc gọi video';
+                }
+
+                dom.incomingCallModal.hidden = false;
+            }
+
+            async function sendCallSignal(action, payload = {}) {
+                if (!state.activeConversationId || !state.callSignalUrlTemplate) {
+                    return;
+                }
+
+                const url = state.callSignalUrlTemplate.replace('__ID__', String(state.activeConversationId));
+                const body = {
+                    action,
+                    sender_id: state.senderId,
+                    target_user_id: payload.targetUserId || state.activePeerId || null,
+                    call_type: payload.callType || state.zegoCallType || 'video',
+                    room_id: payload.roomId || state.activeCallRoomId || buildZegoRoomId(),
+                    caller_name: payload.callerName || buildZegoUserName(),
+                    test_mode: usePublicRealtimeChannel ? 1 : 0,
+                };
+
+                try {
+                    localStorage.setItem(CHAT_CALL_SYNC_STORAGE_KEY, JSON.stringify({
+                        ...body,
+                        conversation_id: Number(state.activeConversationId),
+                        timestamp: Date.now(),
+                    }));
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': state.csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(body),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Không thể gửi tín hiệu cuộc gọi.');
+                    }
+
+                    const payloadData = await response.json().catch(() => ({}));
+                    const signal = payloadData.signal || null;
+                    if (signal && String(signal.action || '').toLowerCase() === 'incoming') {
+                        state.lastCallSignalAt = signal.created_at || state.lastCallSignalAt;
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            function handleCallSignalEvent(event) {
+                const payload = event || {};
+                const senderId = Number(payload.sender_id) || 0;
+                const targetUserId = Number(payload.target_user_id) || 0;
+                const currentUserId = Number(state.senderId) || Number(state.currentUserId) || 0;
+
+                if (!currentUserId || senderId === currentUserId) {
+                    return;
+                }
+
+                if (targetUserId > 0 && targetUserId !== currentUserId) {
+                    return;
+                }
+
+                const action = String(payload.action || '').toLowerCase();
+                if (!action) return;
+
+                if (action === 'incoming') {
+                    if (state.zegoCallInstance) {
+                        sendCallSignal('rejected', {
+                            targetUserId: senderId,
+                            roomId: payload.room_id,
+                            callType: payload.call_type,
+                        });
+                        return;
+                    }
+
+                    openIncomingCallModal(payload);
+                    return;
+                }
+
+                if (action === 'rejected' && state.zegoCallInstance) {
+                    alert('Người nhận đã từ chối cuộc gọi.');
+                    endZegoCall(false);
+                    return;
+                }
+
+                if (action === 'ended' && state.zegoCallInstance) {
+                    endZegoCall(false);
+                }
+            }
+
+            window.addEventListener('storage', function(event) {
+                if (event.key !== CHAT_CALL_SYNC_STORAGE_KEY || !event.newValue) {
+                    return;
+                }
+
+                try {
+                    const payload = JSON.parse(event.newValue);
+                    if (!payload || Number(payload.conversation_id) !== Number(state.activeConversationId)) {
+                        return;
+                    }
+
+                    handleCallSignalEvent({
+                        conversation_id: payload.conversation_id,
+                        sender_id: payload.sender_id,
+                        target_user_id: payload.target_user_id,
+                        action: payload.action,
+                        call_type: payload.call_type,
+                        room_id: payload.room_id,
+                        caller_name: payload.caller_name,
+                        test_mode: payload.test_mode,
+                    });
+                } catch (error) {
+                    console.error(error);
+                }
+            });
+
+            async function pollLatestCallSignal() {
+                if (!state.activeConversationId || !state.callSignalLatestUrlTemplate) {
+                    return;
+                }
+
+                try {
+                    const url = `${state.callSignalLatestUrlTemplate.replace('__ID__', String(state.activeConversationId))}?sender_id=${encodeURIComponent(String(state.senderId))}`;
+                    const response = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/json',
+                        },
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    const signal = payload?.signal || null;
+                    if (!signal) return;
+
+                    const signalAt = String(signal.created_at || '');
+                    if (signalAt && signalAt === state.lastCallSignalAt) {
+                        return;
+                    }
+
+                    state.lastCallSignalAt = signalAt || state.lastCallSignalAt;
+                    handleCallSignalEvent(signal);
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            async function pollLatestTypingStatus() {
+                if (!state.activeConversationId || !state.typingLatestUrlTemplate) {
+                    return;
+                }
+
+                try {
+                    const url = new URL(state.typingLatestUrlTemplate.replace('__ID__', String(state.activeConversationId)), window.location.origin);
+                    url.searchParams.set('sender_id', String(state.senderId));
+                    if (usePublicRealtimeChannel) {
+                        url.searchParams.set('test_mode', '1');
+                    }
+
+                    const response = await fetch(url.toString(), {
+                        headers: {
+                            'Accept': 'application/json',
+                        },
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    const typing = payload?.typing || null;
+                    if (!typing) {
+                        resetRemoteTypingIndicator(state.activeConversationId);
+                        return;
+                    }
+
+                    const typingAt = String(typing.created_at || '');
+                    if (typingAt && typingAt === state.lastTypingSignalAt) {
+                        return;
+                    }
+
+                    state.lastTypingSignalAt = typingAt || state.lastTypingSignalAt;
+
+                    if (Boolean(typing.is_typing)) {
+                        showRemoteTypingIndicator(String(typing.sender_name || ''), Number(typing.conversation_id) || state.activeConversationId);
+                        return;
+                    }
+
+                    resetRemoteTypingIndicator(Number(typing.conversation_id) || state.activeConversationId);
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            function endZegoCall(notifyRemote = false) {
+                if (notifyRemote && state.activeConversationId && state.activePeerId) {
+                    sendCallSignal('ended', {
+                        targetUserId: state.activePeerId,
+                    });
+                }
+
                 if (state.zegoCallInstance && typeof state.zegoCallInstance.destroy === 'function') {
                     state.zegoCallInstance.destroy();
                 }
 
                 state.zegoCallInstance = null;
                 state.zegoCallType = null;
+                state.activeCallRoomId = null;
 
                 if (dom.zegoCallContainer) {
                     dom.zegoCallContainer.innerHTML = '';
@@ -1664,10 +2148,12 @@ if ($testConversationId <= 0) {
                     dom.zegoCallModal.hidden = true;
                 }
 
+                closeIncomingCallModal();
+
                 setCallButtonsDisabled(false);
             }
 
-            async function startZegoCall(callType = 'video') {
+            async function startZegoCall(callType = 'video', options = {}) {
                 if (!state.activeConversationId) {
                     alert('Hãy chọn một cuộc trò chuyện trước khi gọi.');
                     return;
@@ -1689,7 +2175,7 @@ if ($testConversationId <= 0) {
                     return;
                 }
 
-                const roomId = buildZegoRoomId();
+                const roomId = String(options.roomId || buildZegoRoomId());
                 const userId = buildZegoUserId();
                 const userName = buildZegoUserName();
 
@@ -1698,7 +2184,7 @@ if ($testConversationId <= 0) {
                     return;
                 }
 
-                endZegoCall();
+                endZegoCall(false);
                 setCallButtonsDisabled(true);
 
                 try {
@@ -1712,6 +2198,15 @@ if ($testConversationId <= 0) {
 
                     state.zegoCallInstance = zegoUIKit.create(kitToken);
                     state.zegoCallType = callType;
+                    state.activeCallRoomId = roomId;
+
+                    if (!options.skipSignal && state.activePeerId) {
+                        sendCallSignal('incoming', {
+                            targetUserId: state.activePeerId,
+                            roomId,
+                            callType,
+                        });
+                    }
 
                     if (dom.zegoCallTitle) {
                         dom.zegoCallTitle.textContent = callType === 'video' ? 'Cuộc gọi video' : 'Cuộc gọi thoại';
@@ -1735,12 +2230,12 @@ if ($testConversationId <= 0) {
                         showRoomDetailsButton: false,
                         maxUsers: 2,
                         onLeaveRoom: () => {
-                            endZegoCall();
+                            endZegoCall(false);
                         },
                     });
                 } catch (error) {
                     console.error(error);
-                    endZegoCall();
+                    endZegoCall(false);
                     alert('Không thể bắt đầu cuộc gọi ZegoCloud. Vui lòng thử lại.');
                 }
             }
@@ -2107,7 +2602,10 @@ if ($testConversationId <= 0) {
             }
 
             function setChatBackgroundImage(imageDataUrl) {
-                dom.chatBox.style.backgroundImage = imageDataUrl ? `url(${imageDataUrl})` : 'none';
+                // Keep thread area white even if a conversation previously stored a background image.
+                dom.chatBox.style.backgroundImage = 'none';
+                dom.chatBox.style.backgroundColor = '#ffffff';
+                dom.chatBox.style.backgroundBlendMode = 'normal';
             }
 
             function setConversationBackground(conversationId, backgroundUrl) {
@@ -2313,9 +2811,63 @@ if ($testConversationId <= 0) {
             }
 
             function conversationPreview(item) {
-                const text = item.last_message || 'Bắt đầu cuộc trò chuyện';
+                const conversationId = Number(item?.id) || 0;
+                const typingState = typingPreviewByConversation.get(conversationId) || null;
+                if (typingState && Boolean(typingState.is_typing)) {
+                    const typingName = String(typingState.sender_name || item?.name || 'Người dùng').trim();
+                    return `${typingName} đang soạn tin...`;
+                }
+
+                const baseText = item.last_message || 'Bắt đầu cuộc trò chuyện';
+                const senderId = Number(item.last_message_sender_id) || 0;
+                const text = senderId > 0 && senderId === Number(state.senderId) ? `Bạn: ${baseText}` : baseText;
                 const time = formatSidebarTime(item.last_message_at);
                 return time ? `${text} · ${time}` : text;
+            }
+
+            function setConversationTypingPreview(conversationId, isTyping, senderDisplayName = '') {
+                const targetId = Number(conversationId) || 0;
+                if (!targetId) {
+                    return;
+                }
+
+                const existingTimer = typingPreviewResetTimers.get(targetId);
+                if (existingTimer) {
+                    clearTimeout(existingTimer);
+                    typingPreviewResetTimers.delete(targetId);
+                }
+
+                if (Boolean(isTyping)) {
+                    typingPreviewByConversation.set(targetId, {
+                        is_typing: true,
+                        sender_name: String(senderDisplayName || '').trim(),
+                        updated_at: Date.now(),
+                    });
+
+                    const resetTimer = setTimeout(function() {
+                        typingPreviewByConversation.delete(targetId);
+                        typingPreviewResetTimers.delete(targetId);
+                        renderConversationList();
+                    }, TYPING_STATUS_RESET_MS);
+                    typingPreviewResetTimers.set(targetId, resetTimer);
+                } else {
+                    typingPreviewByConversation.delete(targetId);
+                }
+
+                const isActiveThread = Number(state.activeConversationId) === targetId;
+                if (isActiveThread && dom.typingIndicator) {
+                    const showTyping = Boolean(isTyping);
+                    dom.typingIndicator.hidden = !showTyping;
+                    if (showTyping) {
+                        // Keep typing bubble at the visual bottom even after new messages append.
+                        if (dom.typingIndicator.parentElement === dom.chatBox) {
+                            dom.chatBox.appendChild(dom.typingIndicator);
+                        }
+                        scrollToLatestMessage();
+                    }
+                }
+
+                renderConversationList();
             }
 
             function updateSendButton() {
@@ -2411,9 +2963,13 @@ if ($testConversationId <= 0) {
 
                 const renderItem = (conversation) => {
                     const isActive = Number(conversation.id) === Number(state.activeConversationId);
+                    const activeDot = conversation.is_recently_active ? '<span class="ig-conversation-active-dot" aria-label="Đang hoạt động"></span>' : '';
                     return `
                     <button class="ig-conversation-item ${isActive ? 'is-active' : ''}" type="button" data-conversation-id="${conversation.id}">
-                        <img src="${escapeHtml(conversation.avatar)}" alt="${escapeHtml(conversation.name)}">
+                        <span class="ig-conversation-avatar-wrap">
+                            <img class="ig-conversation-avatar" src="${escapeHtml(conversation.avatar)}" alt="${escapeHtml(conversation.name)}">
+                            ${activeDot}
+                        </span>
                         <div class="ig-conversation-main">
                             <strong>${escapeHtml(conversation.name)}</strong>
                             <span>${escapeHtml(conversationPreview(conversation))}</span>
@@ -2437,8 +2993,8 @@ if ($testConversationId <= 0) {
             }
 
             function updateThreadIdentity(name, avatar) {
-                const handle = String(name || 'instagram').toLowerCase().replace(/\s+/g, '');
-                state.activeConversationName = name || 'Instagram';
+                const handle = String(name || 'vibetalk').toLowerCase().replace(/\s+/g, '');
+                state.activeConversationName = name || 'VibeTalk';
                 state.activeConversationAvatar = avatar || avatarUrl(state.activeConversationName);
                 dom.threadName.textContent = state.activeConversationName;
                 dom.threadStatus.textContent = 'Đang hoạt động';
@@ -2448,6 +3004,93 @@ if ($testConversationId <= 0) {
                 dom.introHandle.textContent = handle;
             }
 
+            function resetRemoteTypingIndicator(conversationId = state.activeConversationId) {
+                if (typingStatusResetTimer) {
+                    clearTimeout(typingStatusResetTimer);
+                    typingStatusResetTimer = null;
+                }
+
+                setConversationTypingPreview(conversationId, false);
+            }
+
+            function showRemoteTypingIndicator(senderName = '', conversationId = state.activeConversationId) {
+                const displayName = String(senderName || state.activeConversationName || 'Người dùng').trim();
+                setConversationTypingPreview(conversationId, true, displayName);
+
+                if (typingStatusResetTimer) {
+                    clearTimeout(typingStatusResetTimer);
+                }
+
+                typingStatusResetTimer = setTimeout(function() {
+                    resetRemoteTypingIndicator(conversationId);
+                }, TYPING_STATUS_RESET_MS);
+            }
+
+            async function sendTypingStatus(isTyping) {
+                if (!state.activeConversationId || !state.typingUrlTemplate) {
+                    return;
+                }
+
+                const now = Date.now();
+                if (
+                    isTyping &&
+                    typingLastSentState === true &&
+                    (now - typingLastSentAt) < TYPING_THROTTLE_MS
+                ) {
+                    return;
+                }
+
+                typingLastSentState = Boolean(isTyping);
+                typingLastSentAt = now;
+
+                try {
+                    await fetch(state.typingUrlTemplate.replace('__ID__', String(state.activeConversationId)), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': state.csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            sender_id: state.senderId,
+                            is_typing: Boolean(isTyping),
+                            test_mode: usePublicRealtimeChannel ? 1 : 0,
+                        })
+                    });
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            function scheduleTypingStatusFromInput() {
+                if (!state.activeConversationId) {
+                    return;
+                }
+
+                const hasText = String(dom.input.value || '').trim().length > 0;
+
+                if (hasText) {
+                    sendTypingStatus(true);
+
+                    if (typingStopTimer) {
+                        clearTimeout(typingStopTimer);
+                    }
+
+                    typingStopTimer = setTimeout(function() {
+                        sendTypingStatus(false);
+                        typingStopTimer = null;
+                    }, TYPING_IDLE_MS);
+                    return;
+                }
+
+                if (typingStopTimer) {
+                    clearTimeout(typingStopTimer);
+                    typingStopTimer = null;
+                }
+
+                sendTypingStatus(false);
+            }
+
             function clearMessages() {
                 const rows = dom.chatBox.querySelectorAll('.ig-message-row');
                 rows.forEach((row) => row.remove());
@@ -2455,7 +3098,107 @@ if ($testConversationId <= 0) {
                 stamps.forEach((stamp) => stamp.remove());
                 state.seenMessageIds.clear();
                 state.lastTimelineMessageAt = null;
+                state.messagesMeta = {
+                    has_more: false,
+                    next_before_id: null,
+                    limit: MESSAGE_PAGE_SIZE,
+                };
+                state.loadingOlderMessages = false;
+                if (dom.typingIndicator) {
+                    dom.typingIndicator.hidden = true;
+                }
                 dom.intro.style.display = 'block';
+            }
+
+            function getCachedConversation(conversationId) {
+                const key = String(Number(conversationId) || 0);
+                return key !== '0' ? (state.messageCache[key] || null) : null;
+            }
+
+            function setCachedConversation(conversationId, payload) {
+                const key = String(Number(conversationId) || 0);
+                if (key === '0') {
+                    return;
+                }
+
+                state.messageCache[key] = {
+                    messages: Array.isArray(payload?.messages) ? payload.messages.slice() : [],
+                    meta: payload?.meta && typeof payload.meta === 'object' ? {
+                        has_more: Boolean(payload.meta.has_more),
+                        next_before_id: Number(payload.meta.next_before_id) || null,
+                        limit: Number(payload.meta.limit) || MESSAGE_PAGE_SIZE,
+                    } : {
+                        has_more: false,
+                        next_before_id: null,
+                        limit: MESSAGE_PAGE_SIZE,
+                    },
+                    updated_at: new Date().toISOString(),
+                };
+            }
+
+            function appendMessageToCache(conversationId, message) {
+                const cached = getCachedConversation(conversationId);
+                if (!cached || !message) {
+                    return;
+                }
+
+                const messageId = Number(message.id) || 0;
+                if (messageId && cached.messages.some((item) => Number(item?.id) === messageId)) {
+                    return;
+                }
+
+                cached.messages = cached.messages.concat([message]);
+                cached.meta = cached.meta || {
+                    has_more: false,
+                    next_before_id: null,
+                    limit: MESSAGE_PAGE_SIZE,
+                };
+                cached.updated_at = new Date().toISOString();
+            }
+
+            function prependMessagesToCache(conversationId, messages, meta = null) {
+                const cached = getCachedConversation(conversationId) || {
+                    messages: [],
+                    meta: {
+                        has_more: false,
+                        next_before_id: null,
+                        limit: MESSAGE_PAGE_SIZE,
+                    },
+                };
+
+                const existingIds = new Set(cached.messages.map((item) => Number(item?.id) || 0));
+                const nextMessages = Array.isArray(messages) ? messages.filter((item) => {
+                    const id = Number(item?.id) || 0;
+                    return id > 0 && !existingIds.has(id);
+                }) : [];
+
+                cached.messages = nextMessages.concat(cached.messages);
+                if (meta && typeof meta === 'object') {
+                    cached.meta = {
+                        has_more: Boolean(meta.has_more),
+                        next_before_id: Number(meta.next_before_id) || null,
+                        limit: Number(meta.limit) || MESSAGE_PAGE_SIZE,
+                    };
+                }
+                cached.updated_at = new Date().toISOString();
+                setCachedConversation(conversationId, cached);
+            }
+
+            function renderConversationFromCache(conversationId) {
+                const cached = getCachedConversation(conversationId);
+                if (!cached) {
+                    return false;
+                }
+
+                clearMessages();
+                state.messagesMeta = cached.meta || {
+                    has_more: false,
+                    next_before_id: null,
+                    limit: MESSAGE_PAGE_SIZE,
+                };
+                (cached.messages || []).forEach((message) => renderMessage(message, false));
+                scrollToLatestMessage();
+                return true;
             }
 
             function scrollToLatestMessage() {
@@ -2596,7 +3339,12 @@ if ($testConversationId <= 0) {
                 }).join('');
             }
 
-            function renderMessage(message, shouldScroll = true) {
+            function renderMessage(message, shouldScroll = true, options = {}) {
+                const prepend = Boolean(options?.prepend);
+                const tempId = Number(options?.tempId || 0);
+                const sendStatus = String(options?.sendStatus || '');
+                const isPending = sendStatus === 'pending';
+                const isSendError = sendStatus === 'error';
                 const messageId = Number(message.id) || 0;
                 if (messageId && state.seenMessageIds.has(messageId)) return;
                 if (messageId) state.seenMessageIds.add(messageId);
@@ -2618,17 +3366,23 @@ if ($testConversationId <= 0) {
                 const stickerMarkup = sticker ? `<img class="ig-message-media ig-message-sticker" src="${sticker.url}" alt="${escapeHtml(sticker.label)}">` : '';
                 const reactionMarkup = message.reaction ? `<span class="ig-message-reaction">${escapeHtml(message.reaction)}</span>` : '';
                 const avatarMarkup = !mine ? `<img class="ig-message-avatar" src="${senderAvatar}" alt="${escapeHtml(senderName)}">` : '';
+                const sendStatusText = isSendError ? (String(options?.errorMessage || 'Gửi thất bại')) : 'Đang gửi';
+                const sendStatusMarkup = (isPending || isSendError) ?
+                    `<span class="ig-message-send-status ${isSendError ? 'is-error' : 'is-pending'}" title="${escapeHtml(sendStatusText)}" aria-label="${escapeHtml(sendStatusText)}">${isSendError ? '!' : '...'}</span>` :
+                    '';
 
-                const shouldShowStamp = shouldShowTimelineStamp(message.created_at, state.lastTimelineMessageAt);
+                const shouldShowStamp = !prepend && shouldShowTimelineStamp(message.created_at, state.lastTimelineMessageAt);
                 if (shouldShowStamp) {
                     const stampLabel = formatTimelineStamp(message.created_at);
                     dom.chatBox.insertAdjacentHTML('beforeend', `<div class="ig-message-stamp">${escapeHtml(stampLabel)}</div>`);
                 }
 
-                state.lastTimelineMessageAt = message.created_at || state.lastTimelineMessageAt;
+                if (!prepend) {
+                    state.lastTimelineMessageAt = message.created_at || state.lastTimelineMessageAt;
+                }
 
                 const html = `
-                <article class="ig-message-row ${mine ? 'me' : 'them'} ${isImageOnly ? 'is-image-only' : ''} ${isRecalled ? 'is-recalled' : ''}" data-message-id="${messageId || ''}">
+                <article class="ig-message-row ${mine ? 'me' : 'them'} ${isImageOnly ? 'is-image-only' : ''} ${isRecalled ? 'is-recalled' : ''} ${isPending ? 'is-sending' : ''} ${isSendError ? 'is-send-error' : ''}" data-message-id="${messageId || tempId || ''}" ${tempId ? `data-message-temp-id="${tempId}"` : ''}>
                     ${avatarMarkup}
                     <div class="ig-message-wrapper">
                         ${body ? `<div class="ig-message-content ${isRecalled ? 'is-recalled' : ''}">${body}</div>` : ''}
@@ -2636,16 +3390,17 @@ if ($testConversationId <= 0) {
                         ${attachments}
                         <div class="ig-message-meta">
                             ${reactionMarkup}
+                            ${sendStatusMarkup}
                             ${recallButton}
                         </div>
                     </div>
                 </article>
             `;
 
-                dom.chatBox.insertAdjacentHTML('beforeend', html);
+                dom.chatBox.insertAdjacentHTML(prepend ? 'afterbegin' : 'beforeend', html);
                 setupAudioBubbles(dom.chatBox);
 
-                if (shouldScroll) {
+                if (shouldScroll && !prepend) {
                     scrollToLatestMessage();
                 }
             }
@@ -2655,7 +3410,85 @@ if ($testConversationId <= 0) {
                     return;
                 }
                 renderMessage(message, true);
+                resetRemoteTypingIndicator();
             };
+
+            function createOptimisticMessagePayload(body, tempId) {
+                return {
+                    id: tempId,
+                    conversation_id: Number(state.activeConversationId),
+                    sender_id: Number(state.senderId),
+                    body: body,
+                    type: 'text',
+                    created_at: new Date().toISOString(),
+                    sender: {
+                        id: Number(state.senderId),
+                        name: state.activeConversationName,
+                    },
+                    attachments: [],
+                };
+            }
+
+            function findOptimisticMessageRow(tempId) {
+                const normalizedTempId = Number(tempId) || 0;
+                if (!normalizedTempId) {
+                    return null;
+                }
+
+                return dom.chatBox.querySelector(`[data-message-temp-id="${normalizedTempId}"]`) ||
+                    dom.chatBox.querySelector(`[data-message-id="${normalizedTempId}"]`);
+            }
+
+            function finalizeOptimisticMessage(tempId, message) {
+                const row = findOptimisticMessageRow(tempId);
+                if (!row) {
+                    return;
+                }
+
+                const realMessageId = Number(message?.id) || 0;
+                if (realMessageId > 0) {
+                    state.seenMessageIds.add(realMessageId);
+                }
+
+                if (realMessageId > 0) {
+                    row.dataset.messageId = String(realMessageId);
+                }
+
+                row.removeAttribute('data-message-temp-id');
+                row.classList.remove('is-sending', 'is-send-error');
+
+                const statusNode = row.querySelector('.ig-message-send-status');
+                if (statusNode) {
+                    statusNode.remove();
+                }
+            }
+
+            function markOptimisticMessageError(tempId, errorMessage = 'Gửi thất bại') {
+                const row = findOptimisticMessageRow(tempId);
+                if (!row) {
+                    return;
+                }
+
+                row.classList.remove('is-sending');
+                row.classList.add('is-send-error');
+
+                let statusNode = row.querySelector('.ig-message-send-status');
+                if (!statusNode) {
+                    const meta = row.querySelector('.ig-message-meta');
+                    if (!meta) {
+                        return;
+                    }
+
+                    statusNode = document.createElement('span');
+                    statusNode.className = 'ig-message-send-status is-error';
+                    meta.insertBefore(statusNode, meta.firstChild);
+                }
+
+                statusNode.className = 'ig-message-send-status is-error';
+                statusNode.textContent = '!';
+                statusNode.title = errorMessage;
+                statusNode.setAttribute('aria-label', errorMessage);
+            }
 
             window.removeMessageFromUI = function(messageId) {
                 const normalizedMessageId = Number(messageId) || 0;
@@ -2699,12 +3532,14 @@ if ($testConversationId <= 0) {
                 const items = await response.json();
                 const normalized = (Array.isArray(items) ? items : []).map((item) => ({
                     id: Number(item.id),
+                    peer_id: Number(item.peer_id) || null,
                     name: item.name || `Conversation ${item.id}`,
                     email: item.email || '',
                     avatar: item.avatar || avatarUrl(item.name || `Conversation ${item.id}`),
                     is_recently_active: Boolean(item.is_recently_active),
                     recent_activity_at: item.recent_activity_at || null,
                     last_message: item.last_message || '',
+                    last_message_sender_id: Number(item.last_message_sender_id) || null,
                     last_message_at: item.last_message_at || null,
                     chat_background_url: item.chat_background_url || null,
                 }));
@@ -2712,12 +3547,14 @@ if ($testConversationId <= 0) {
                 if (!normalized.length && state.defaultConversationId) {
                     normalized.push({
                         id: state.defaultConversationId,
+                        peer_id: null,
                         name: 'Cuộc trò chuyện mẫu',
                         email: '',
                         avatar: avatarUrl('Sample Chat'),
                         is_recently_active: false,
                         recent_activity_at: null,
                         last_message: '',
+                        last_message_sender_id: null,
                         last_message_at: null,
                         chat_background_url: null,
                     });
@@ -2735,13 +3572,38 @@ if ($testConversationId <= 0) {
                 }
             }
 
-            async function fetchMessages(conversationId) {
-                const response = await fetch(getMessagesUrl(conversationId));
+            async function fetchMessages(conversationId, options = {}) {
+                const beforeId = Number(options.beforeId) || 0;
+                const url = new URL(getMessagesUrl(conversationId), window.location.origin);
+                url.searchParams.set('limit', String(MESSAGE_PAGE_SIZE));
+                if (beforeId > 0) {
+                    url.searchParams.set('before_id', String(beforeId));
+                }
+
+                const response = await fetch(url.toString());
                 if (!response.ok) {
                     throw new Error('Không tải được tin nhắn.');
                 }
-                const messages = await response.json();
-                return Array.isArray(messages) ? messages : [];
+                const payload = await response.json();
+                if (Array.isArray(payload)) {
+                    return {
+                        data: payload,
+                        meta: {
+                            has_more: false,
+                            next_before_id: null,
+                            limit: MESSAGE_PAGE_SIZE,
+                        },
+                    };
+                }
+
+                return {
+                    data: Array.isArray(payload?.data) ? payload.data : [],
+                    meta: {
+                        has_more: Boolean(payload?.meta?.has_more),
+                        next_before_id: Number(payload?.meta?.next_before_id) || null,
+                        limit: Number(payload?.meta?.limit) || MESSAGE_PAGE_SIZE,
+                    },
+                };
             }
 
             function refreshConversationPreviewFromMessages(conversationId, messages) {
@@ -2750,18 +3612,94 @@ if ($testConversationId <= 0) {
 
                 const latestMessage = messages[messages.length - 1] || null;
                 currentConversation.last_message = latestMessage ? getMessagePreview(latestMessage) : '';
+                currentConversation.last_message_sender_id = latestMessage ? (Number(latestMessage.sender_id) || null) : null;
                 currentConversation.last_message_at = latestMessage?.created_at || null;
+                renderConversationList();
+            }
+
+            function refreshConversationPreview(conversationId, body, messageSenderId = null) {
+                const currentConversation = state.conversations.find((item) => Number(item.id) === Number(conversationId));
+                if (!currentConversation) {
+                    return;
+                }
+
+                currentConversation.last_message = String(body || '').trim() || '❤️';
+                setConversationTypingPreview(conversationId, false);
+                if (messageSenderId !== null) {
+                    currentConversation.last_message_sender_id = Number(messageSenderId) || null;
+                }
+                currentConversation.last_message_at = new Date().toISOString();
+
+                state.conversations.sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
                 renderConversationList();
             }
 
             async function reloadActiveConversation() {
                 if (!state.activeConversationId) return;
 
-                const messages = await fetchMessages(state.activeConversationId);
+                const payload = await fetchMessages(state.activeConversationId);
+                const messages = payload.data;
+                state.messagesMeta = payload.meta;
                 clearMessages();
                 messages.forEach((message) => renderMessage(message, false));
                 refreshConversationPreviewFromMessages(state.activeConversationId, messages);
                 scrollToLatestMessage();
+            }
+
+            async function loadOlderMessages() {
+                if (!state.activeConversationId || state.loadingOlderMessages) {
+                    return;
+                }
+
+                if (!state.messagesMeta?.has_more) {
+                    return;
+                }
+
+                const beforeId = Number(state.messagesMeta?.next_before_id) || 0;
+                if (!beforeId) {
+                    return;
+                }
+
+                state.loadingOlderMessages = true;
+                const previousScrollHeight = dom.chatBox.scrollHeight;
+                const previousScrollTop = dom.chatBox.scrollTop;
+
+                try {
+                    const payload = await fetchMessages(state.activeConversationId, {
+                        beforeId,
+                    });
+
+                    const olderMessages = Array.isArray(payload.data) ? payload.data : [];
+                    state.messagesMeta = payload.meta;
+
+                    if (!olderMessages.length) {
+                        return;
+                    }
+
+                    for (let index = olderMessages.length - 1; index >= 0; index -= 1) {
+                        renderMessage(olderMessages[index], false, {
+                            prepend: true,
+                        });
+                    }
+
+                    requestAnimationFrame(function() {
+                        const currentScrollHeight = dom.chatBox.scrollHeight;
+                        const deltaHeight = currentScrollHeight - previousScrollHeight;
+                        dom.chatBox.scrollTop = previousScrollTop + deltaHeight;
+                    });
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    state.loadingOlderMessages = false;
+                }
+            }
+
+            function handleChatBoxScroll() {
+                if (dom.chatBox.scrollTop > 8) {
+                    return;
+                }
+
+                loadOlderMessages();
             }
 
             function stopLiveListeners() {
@@ -2770,9 +3708,24 @@ if ($testConversationId <= 0) {
                     state.unsubscribeRealtime = null;
                 }
 
+                if (typingStopTimer) {
+                    clearTimeout(typingStopTimer);
+                    typingStopTimer = null;
+                }
+
+                if (typingStatusResetTimer) {
+                    clearTimeout(typingStatusResetTimer);
+                    typingStatusResetTimer = null;
+                }
+
                 if (state.pollingTimer) {
                     clearInterval(state.pollingTimer);
                     state.pollingTimer = null;
+                }
+
+                if (state.callPollingTimer) {
+                    clearInterval(state.callPollingTimer);
+                    state.callPollingTimer = null;
                 }
             }
 
@@ -2782,33 +3735,72 @@ if ($testConversationId <= 0) {
                 if (typeof window.subscribeToConversation === 'function') {
                     state.unsubscribeRealtime = window.subscribeToConversation(conversationId, function(message) {
                         window.appendMessageToUI(message);
-                    }, state.testMode);
+                    }, usePublicRealtimeChannel);
                 }
 
                 if (window.Echo) {
                     const channelName = `chat.${conversationId}`;
-                    const channel = state.testMode ? window.Echo.channel(channelName) : window.Echo.private(channelName);
+                    const channels = [];
+                    const primaryChannel = usePublicRealtimeChannel ? window.Echo.channel(channelName) : window.Echo.private(channelName);
+                    channels.push(primaryChannel);
 
-                    channel.listen('.ChatBackgroundChanged', function(event) {
-                        const updatedConversationId = Number(event?.conversationId) || 0;
-                        if (!updatedConversationId) return;
+                    // Defensive fallback: listen on both channel types to avoid missing events when mode drifts.
+                    channels.push(usePublicRealtimeChannel ? window.Echo.private(channelName) : window.Echo.channel(channelName));
 
-                        setConversationBackground(updatedConversationId, event?.backgroundUrl || null);
+                    channels.forEach(function(channel) {
+                        channel.listen('.ChatBackgroundChanged', function(event) {
+                            const updatedConversationId = Number(event?.conversationId) || 0;
+                            if (!updatedConversationId) return;
 
-                        if (updatedConversationId === Number(state.activeConversationId)) {
-                            applyActiveConversationBackground();
-                        }
+                            setConversationBackground(updatedConversationId, event?.backgroundUrl || null);
+
+                            if (updatedConversationId === Number(state.activeConversationId)) {
+                                applyActiveConversationBackground();
+                            }
+                        });
+
+                        channel.listen('.CallSignal', function(event) {
+                            handleCallSignalEvent(event);
+                        });
+
+                        channel.listen('.TypingStatusChanged', function(event) {
+                            const eventConversationId = Number(event?.conversation_id) || 0;
+                            if (!eventConversationId) {
+                                return;
+                            }
+
+                            const eventSenderId = Number(event?.sender_id) || 0;
+                            if (eventSenderId === Number(state.senderId)) {
+                                return;
+                            }
+
+                            if (Boolean(event?.is_typing)) {
+                                showRemoteTypingIndicator(String(event?.sender_name || ''), eventConversationId);
+                                return;
+                            }
+
+                            resetRemoteTypingIndicator(eventConversationId);
+                        });
                     });
                 }
 
                 state.pollingTimer = setInterval(async function() {
                     try {
-                        const latest = await fetchMessages(conversationId);
+                        const latestPayload = await fetchMessages(conversationId);
+                        const latest = latestPayload.data;
                         latest.forEach((message) => renderMessage(message, true));
                     } catch (error) {
                         console.error(error);
                     }
                 }, 3000);
+
+                state.callPollingTimer = setInterval(function() {
+                    pollLatestCallSignal();
+                    pollLatestTypingStatus();
+                }, 1500);
+
+                pollLatestCallSignal();
+                pollLatestTypingStatus();
             }
 
             async function selectConversation(conversationId) {
@@ -2816,15 +3808,25 @@ if ($testConversationId <= 0) {
                 renderConversationList();
 
                 const active = state.conversations.find((item) => Number(item.id) === Number(conversationId));
-                updateThreadIdentity(active?.name || 'Instagram', active?.avatar || avatarUrl(active?.name || 'Instagram'));
+                state.activePeerId = Number(active?.peer_id) || null;
+                updateThreadIdentity(active?.name || 'VibeTalk', active?.avatar || avatarUrl(active?.name || 'VibeTalk'));
+                resetRemoteTypingIndicator();
                 applyActiveConversationBackground();
 
                 clearMessages();
 
                 try {
-                    const messages = await fetchMessages(conversationId);
+                    const payload = await fetchMessages(conversationId);
+                    const messages = payload.data;
+                    state.messagesMeta = payload.meta;
                     messages.forEach((message) => renderMessage(message, false));
                     scrollToLatestMessage();
+
+                    const typingState = typingPreviewByConversation.get(Number(conversationId)) || null;
+                    if (typingState?.is_typing) {
+                        setConversationTypingPreview(Number(conversationId), true, String(typingState.sender_name || active?.name || ''));
+                    }
+
                     startLiveListeners(conversationId);
                 } catch (error) {
                     dom.chatBox.insertAdjacentHTML('beforeend', '<p class="ig-empty-note">Không thể tải tin nhắn. Vui lòng thử lại.</p>');
@@ -2844,10 +3846,24 @@ if ($testConversationId <= 0) {
 
                 const text = dom.input.value.trim();
                 const payloadBody = text || state.quickReaction || '❤️';
+                const tempId = -((Date.now() * 1000) + (localMessageSequence++ % 1000));
+                const optimisticMessage = createOptimisticMessagePayload(payloadBody, tempId);
+                let optimisticRendered = false;
 
                 dom.sendButton.disabled = true;
 
                 try {
+                    renderMessage(optimisticMessage, true, {
+                        tempId: tempId,
+                        sendStatus: 'pending',
+                    });
+                    optimisticRendered = true;
+
+                    dom.input.value = '';
+                    updateSendButton();
+                    refreshConversationPreview(state.activeConversationId, payloadBody, Number(state.senderId));
+                    sendTypingStatus(false);
+
                     const response = await fetch(state.messagesUrlTemplate.replace('__ID__', String(state.activeConversationId)), {
                         method: 'POST',
                         headers: {
@@ -2868,20 +3884,22 @@ if ($testConversationId <= 0) {
                     }
 
                     const message = await response.json();
-                    renderMessage(message, true);
+                    finalizeOptimisticMessage(tempId, message);
                     broadcastChatSync('message-created', message);
-                    dom.input.value = '';
-                    updateSendButton();
 
                     const currentConversation = state.conversations.find((c) => Number(c.id) === Number(state.activeConversationId));
                     if (currentConversation) {
                         currentConversation.last_message = getMessagePreview(message);
-                        currentConversation.last_message_at = new Date().toISOString();
+                        currentConversation.last_message_sender_id = Number(state.senderId) || null;
+                        currentConversation.last_message_at = message.created_at || new Date().toISOString();
                         state.conversations.sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
                         renderConversationList();
                     }
                 } catch (error) {
                     console.error(error);
+                    if (optimisticRendered) {
+                        markOptimisticMessageError(tempId, error.message || 'Không thể gửi tin nhắn.');
+                    }
                 } finally {
                     dom.sendButton.disabled = false;
                 }
@@ -2925,6 +3943,7 @@ if ($testConversationId <= 0) {
                     const currentConversation = state.conversations.find((c) => Number(c.id) === Number(state.activeConversationId));
                     if (currentConversation) {
                         currentConversation.last_message = getMessagePreview(message);
+                        currentConversation.last_message_sender_id = Number(state.senderId) || null;
                         currentConversation.last_message_at = new Date().toISOString();
                         state.conversations.sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
                         renderConversationList();
@@ -2967,6 +3986,7 @@ if ($testConversationId <= 0) {
                     const currentConversation = state.conversations.find((c) => Number(c.id) === Number(state.activeConversationId));
                     if (currentConversation) {
                         currentConversation.last_message = getMessagePreview(message);
+                        currentConversation.last_message_sender_id = Number(state.senderId) || null;
                         currentConversation.last_message_at = new Date().toISOString();
                         state.conversations.sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
                         renderConversationList();
@@ -3007,6 +4027,7 @@ if ($testConversationId <= 0) {
                 const currentConversation = state.conversations.find((item) => Number(item.id) === Number(state.activeConversationId));
                 if (currentConversation) {
                     currentConversation.last_message = getMessagePreview(recalledMessage);
+                    currentConversation.last_message_sender_id = Number(state.senderId) || null;
                     renderConversationList();
                 }
 
@@ -3229,7 +4250,10 @@ if ($testConversationId <= 0) {
             });
 
             dom.form.addEventListener('submit', sendMessage);
-            dom.input.addEventListener('input', updateSendButton);
+            dom.input.addEventListener('input', function() {
+                updateSendButton();
+                scheduleTypingStatusFromInput();
+            });
 
             dom.chatBox.addEventListener('click', function(event) {
                 const button = event.target.closest('[data-message-recall]');
@@ -3242,6 +4266,10 @@ if ($testConversationId <= 0) {
                     console.error(error);
                     alert(error.message || 'Không thể thu hồi tin nhắn.');
                 });
+            });
+
+            dom.chatBox.addEventListener('scroll', handleChatBoxScroll, {
+                passive: true
             });
 
             if (dom.chatImagePickerToggle && dom.chatImageInput) {
@@ -3307,7 +4335,40 @@ if ($testConversationId <= 0) {
 
             if (dom.zegoCallCloseBtn) {
                 dom.zegoCallCloseBtn.addEventListener('click', function() {
-                    endZegoCall();
+                    endZegoCall(true);
+                });
+            }
+
+            if (dom.incomingCallAcceptBtn) {
+                dom.incomingCallAcceptBtn.addEventListener('click', async function() {
+                    const incoming = state.incomingCall;
+                    if (!incoming) return;
+
+                    closeIncomingCallModal();
+                    await sendCallSignal('accepted', {
+                        targetUserId: Number(incoming.sender_id) || state.activePeerId,
+                        roomId: incoming.room_id,
+                        callType: incoming.call_type,
+                    });
+
+                    startZegoCall(String(incoming.call_type || 'video'), {
+                        roomId: incoming.room_id,
+                        skipSignal: true,
+                    });
+                });
+            }
+
+            if (dom.incomingCallRejectBtn) {
+                dom.incomingCallRejectBtn.addEventListener('click', function() {
+                    const incoming = state.incomingCall;
+                    if (!incoming) return;
+
+                    sendCallSignal('rejected', {
+                        targetUserId: Number(incoming.sender_id) || state.activePeerId,
+                        roomId: incoming.room_id,
+                        callType: incoming.call_type,
+                    });
+                    closeIncomingCallModal();
                 });
             }
 
@@ -3424,6 +4485,21 @@ if ($testConversationId <= 0) {
                         stopCameraCapture();
                     }
                 }
+
+                if (dom.incomingCallModal && !dom.incomingCallModal.hidden) {
+                    const incomingPanel = target.closest('.ig-incoming-call-card');
+                    if (!incomingPanel) {
+                        const incoming = state.incomingCall;
+                        if (incoming) {
+                            sendCallSignal('rejected', {
+                                targetUserId: Number(incoming.sender_id) || state.activePeerId,
+                                roomId: incoming.room_id,
+                                callType: incoming.call_type,
+                            });
+                        }
+                        closeIncomingCallModal();
+                    }
+                }
             });
 
             window.addEventListener('resize', function() {
@@ -3469,7 +4545,9 @@ if ($testConversationId <= 0) {
             window.addEventListener('beforeunload', function() {
                 stopVoiceRecording(false);
             });
-            window.addEventListener('beforeunload', endZegoCall);
+            window.addEventListener('beforeunload', function() {
+                endZegoCall(true);
+            });
 
             initStickerGallery();
             setQuickReaction(localStorage.getItem(CHAT_QUICK_REACTION_STORAGE_KEY) || '❤️');

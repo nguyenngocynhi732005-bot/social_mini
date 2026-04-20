@@ -10,7 +10,7 @@ use App\Http\Controllers\PostUploadController;
 // ========================================================================
 // THÀNH VIÊN 1 (NHI): NEWSFEED, ADMIN & POSTS
 // ========================================================================
-Route::get('/', 'App\Http\Controllers\MainController@index')->name('newsfeed');
+Route::get('/newsfeed', 'App\Http\Controllers\MainController@index')->middleware('auth')->name('newsfeed');
 Route::get('/admin/dashboard', 'App\Http\Controllers\AdminController@index')->name('admin.dashboard');
 Route::post('/post/store', 'App\Http\Controllers\PostController@store')->name('post.store');
 Route::delete('/post/{post}', 'App\Http\Controllers\PostController@destroy')->name('post.destroy');
@@ -41,9 +41,7 @@ Route::get('/stories/snapshot', [MainController::class, 'storiesSnapshot'])->nam
 // ========================================================================
 // THÀNH VIÊN 2: AUTHENTICATION (Đăng nhập, Đăng ký)
 // ========================================================================
-// Tạm thời tắt chức năng đăng nhập/đăng ký để ưu tiên luồng tạo story.
-Route::redirect('/login', '/')->name('login');
-Route::redirect('/register', '/')->name('register');
+// Auth routes được khai báo trong routes/auth.php
 
 
 // ========================================================================
@@ -66,10 +64,10 @@ use App\Http\Controllers\ChatRealtime\MessageController;
 // Route để mở trang giao diện test
 Route::get('/chat/test', function () {
     return View::make('chat-realtime.test');
-})->name('chat.test');
+})->middleware('auth')->name('chat.test');
 
 // Nhóm các Route liên quan đến Chat
-Route::prefix('chat')->name('chat.')->group(function () {
+Route::prefix('chat')->name('chat.')->middleware('auth')->group(function () {
 
     // 0. Lấy danh sách hội thoại để render sidebar chat
     Route::get('/conversations', [MessageController::class, 'conversations'])->name('conversations.index');
@@ -83,6 +81,23 @@ Route::prefix('chat')->name('chat.')->group(function () {
     // 3. THU HỒI TIN NHẮN
     Route::delete('/conversations/{conversation}/messages/{message}', [MessageController::class, 'destroy'])->name('messages.destroy');
 
+    // 3.1 ĐÁNH DẤU ĐÃ ĐỌC
+    Route::post('/conversations/{conversation}/read', [MessageController::class, 'markAsRead'])->name('conversations.read');
+
+    // 3.2 TRẠNG THÁI ĐANG SOẠN TIN
+    Route::post('/conversations/{conversation}/typing', [MessageController::class, 'typingStatus'])->name('conversations.typing');
+    Route::get('/conversations/{conversation}/typing/latest', [MessageController::class, 'latestTypingStatus'])->name('conversations.typing.latest');
+
     // 4. ĐỔI/XÓA ẢNH NỀN CUỘC TRÒ CHUYỆN
     Route::post('/conversations/{conversation}/background', [MessageController::class, 'updateBackground'])->name('background.update');
+
+    // 5. PHÁT TÍN HIỆU CUỘC GỌI (incoming/accept/reject/end)
+    Route::post('/conversations/{conversation}/call-signal', [MessageController::class, 'signalCall'])->name('calls.signal');
+    Route::get('/conversations/{conversation}/call-signal/latest', [MessageController::class, 'latestCallSignal'])->name('calls.latest');
 });
+
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->middleware(['auth'])->name('dashboard');
+
+require __DIR__ . '/auth.php';

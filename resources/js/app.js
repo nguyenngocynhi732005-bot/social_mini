@@ -1,2 +1,9 @@
-require('./bootstrap');
-import './chat-realtime/socket-client.js'; // Đường dẫn phải đúng tới file chứa hàm listenForMessages
+import './bootstrap';
+
+import Alpine from 'alpinejs';
+
+window.Alpine = Alpine;
+
+Alpine.start();
+
+import './chat-realtime/socket-client.js';

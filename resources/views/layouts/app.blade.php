@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Social Mini - @yield('title')</title>
-    
+
     <!-- CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,26 +15,39 @@
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <!-- Emoji Picker -->
     <script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js"></script>
-        @stack('styles')
-      
-      <style>
-        body { 
+    @stack('styles')
+
+    @php
+    $mixManifestPath = public_path('mix-manifest.json');
+    $mixManifest = is_file($mixManifestPath) ? (json_decode(file_get_contents($mixManifestPath), true) ?: []) : [];
+    @endphp
+    @if (isset($mixManifest['/js/app.js']))
+    <script src="{{ mix('js/app.js') }}"></script>
+    @elseif (is_file(public_path('js/app.js')))
+    <script src="{{ asset('js/app.js') }}"></script>
+    @endif
+
+    <style>
+        body {
             background: linear-gradient(to top, #fff1eb 0%, #ace0f9 100%);
             min-height: 100vh;
             font-family: 'Quicksand', sans-serif;
             background-attachment: fixed;
         }
-        
-        .navbar { 
-            background-color: rgba(255, 255, 255, 0.8) !important; 
-            backdrop-filter: blur(15px);
-            border-bottom: 2px solid rgba(255, 192, 203, 0.3); 
-            z-index: 1030;
-        }        
 
-        .card { border: none; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        
-        /* CSS GẠCH CHÂN ICON  */
+        .navbar {
+            background-color: rgba(255, 255, 255, 0.8) !important;
+            backdrop-filter: blur(15px);
+            border-bottom: 2px solid rgba(255, 192, 203, 0.3);
+            z-index: 1030;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
         .nav-link-ajax {
             color: #6c757d !important;
             border-bottom: 3px solid transparent !important;
@@ -43,24 +57,42 @@
             position: relative;
         }
 
-        /* Class được thêm vào khi trang active */
         .nav-active {
-            border-bottom: 3px solid #1f1c1c !important; /* Vạch đen xịn */
+            border-bottom: 3px solid #1f1c1c !important;
         }
 
-        /* Màu riêng cho từng icon khi active */
-        .nav-active .fa-home { color: #ec3a63 !important; }
-        .nav-active .fa-tv { color: #84fab0 !important; }
-        .nav-active .fa-users { color: #ffd166 !important; }
+        .nav-active .fa-home {
+            color: #ec3a63 !important;
+        }
 
-        .modal { z-index: 9999 !important; }
-        .modal-backdrop { z-index: 9998 !important; }
+        .nav-active .fa-tv {
+            color: #84fab0 !important;
+        }
 
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .nav-active .fa-users {
+            color: #ffd166 !important;
+        }
+
+        .modal {
+            z-index: 9999 !important;
+        }
+
+        .modal-backdrop {
+            z-index: 9998 !important;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
     @yield('styles')
 </head>
+
 <body>
     @include('layouts.header')
 
@@ -69,7 +101,7 @@
             <div class="col-md-10 col-lg-7" id="ajax-content">
                 @yield('content')
             </div>
-            
+
             @if(View::hasSection('right-sidebar'))
             <div class="col-lg-3 d-none d-lg-block">
                 @yield('right-sidebar')
@@ -79,90 +111,80 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <script>
-    // Hàm cập nhật gạch chân sử dụng Class
-    function updateActiveLinks(url) {
-    // 1. Lấy pathname của trang vừa chuyển tới (ví dụ: /videos)
-    const currentPath = new URL(url, window.location.origin).pathname;
+        function updateActiveLinks(url) {
+            const currentPath = new URL(url, window.location.origin).pathname;
 
-    // 2. Tìm tất cả các link điều hướng
-    document.querySelectorAll('.nav-link-ajax').forEach(link => {
-        const path = link.getAttribute('data-path');
+            document.querySelectorAll('.nav-link-ajax').forEach(link => {
+                const path = link.getAttribute('data-path');
+                link.classList.remove('active-home', 'active-video', 'active-friends');
 
-        // 3. XÓA SẠCH tất cả các class active cũ (của Nhi đặt)
-        link.classList.remove('active-home', 'active-video', 'active-friends');
-
-        // 4. KIỂM TRA khớp trang để thêm lại class tương ứng
-        if (path === currentPath || (currentPath === '/' && path === '/')) {
-            if (path === '/') link.classList.add('active-home');
-            else if (path === '/videos') link.classList.add('active-video');
-            else if (path === '/friends') link.classList.add('active-friends');
-        }
-    });
-}
-
-    // Xử lý Click AJAX
-    document.addEventListener('click', function (e) {
-        const link = e.target.closest('.nav-link-ajax');
-        if (!link) return;
-
-        e.preventDefault();
-        const url = link.getAttribute('href');
-        const targetPath = new URL(url, window.location.origin).pathname;
-
-        // Newsfeed có nhiều script tương tác (modal/editor), nên ưu tiên tải full page.
-        if (targetPath === '/') {
-            window.location.href = url;
-            return;
-        }
-
-        const container = document.getElementById('ajax-content');
-
-        if (!container) {
-            window.location.href = url;
-            return;
-        }
-
-        container.style.opacity = '0.4';
-
-        fetch(url)
-            .then(response => response.text())
-            .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const newContent = doc.getElementById('ajax-content');
-
-                if (newContent) {
-                    container.innerHTML = newContent.innerHTML;
-                    container.style.opacity = '1';
-                    
-                    window.history.pushState({ path: url }, '', url);
-                    updateActiveLinks(url);
-                    
-                    // Cuộn lên đầu trang khi chuyển trang
-                    window.scrollTo(0, 0);
-                } else {
-                    window.location.href = url;
+                if (path === currentPath || (currentPath === '/' && path === '/')) {
+                    if (path === '/') link.classList.add('active-home');
+                    else if (path === '/videos') link.classList.add('active-video');
+                    else if (path === '/friends') link.classList.add('active-friends');
                 }
-            })
-            .catch(() => {
-                window.location.href = url;
             });
-    });
+        }
 
-    // Xử lý nút Back/Forward
-    window.addEventListener('popstate', function() {
-        // Cách tốt nhất để AJAX không bị lỗi vặt khi nhấn Back là reload nhẹ lại trang
-        location.reload(); 
-    });
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('.nav-link-ajax');
+            if (!link) return;
 
-    // Chạy ngay khi load trang lần đầu
-    document.addEventListener('DOMContentLoaded', function() {
-        updateActiveLinks(window.location.href);
-    });
+            e.preventDefault();
+            const url = link.getAttribute('href');
+            const targetPath = new URL(url, window.location.origin).pathname;
+
+            if (targetPath === '/') {
+                window.location.href = url;
+                return;
+            }
+
+            const container = document.getElementById('ajax-content');
+
+            if (!container) {
+                window.location.href = url;
+                return;
+            }
+
+            container.style.opacity = '0.4';
+
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newContent = doc.getElementById('ajax-content');
+
+                    if (newContent) {
+                        container.innerHTML = newContent.innerHTML;
+                        container.style.opacity = '1';
+
+                        window.history.pushState({
+                            path: url
+                        }, '', url);
+                        updateActiveLinks(url);
+                        window.scrollTo(0, 0);
+                    } else {
+                        window.location.href = url;
+                    }
+                })
+                .catch(() => {
+                    window.location.href = url;
+                });
+        });
+
+        window.addEventListener('popstate', function() {
+            location.reload();
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateActiveLinks(window.location.href);
+        });
     </script>
     @yield('scripts')
     @stack('scripts')
 </body>
+
 </html>

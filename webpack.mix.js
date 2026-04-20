@@ -1,23 +1,14 @@
 const mix = require('laravel-mix');
 
-// Đoạn code sửa lỗi "Invalid options object"
-mix.webpackConfig({
-    stats: {
-        children: true,
-    },
+mix.js('resources/js/app.js', 'public/js');
+
+mix.options({
+    processCssUrls: false,
 });
 
-// Vô hiệu hóa Progress Plugin để tránh lỗi Schema
-if (mix.inProduction()) {
-    mix.options({
-        processCssUrls: false
-    });
-} else {
-    mix.options({
-        beforeLoaderCheck: (loader) => {
-            // Loại bỏ progress plugin gây lỗi
-        }
-    });
-}
-
-mix.js('resources/js/app.js', 'public/js');
+mix.override((webpackConfig) => {
+    // Disable WebpackBar to avoid ProgressPlugin schema errors on newer webpack versions.
+    webpackConfig.plugins = (webpackConfig.plugins || []).filter(
+        (plugin) => plugin && plugin.constructor && plugin.constructor.name !== 'WebpackBar'
+    );
+});
