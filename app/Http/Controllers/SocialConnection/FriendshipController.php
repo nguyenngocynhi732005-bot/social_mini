@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Friendship;
 use App\Models\UserBlock;
 use Illuminate\Support\Facades\Log;
+use App\Models\Notification; 
 
 class FriendshipController extends Controller
 {
@@ -159,6 +160,17 @@ class FriendshipController extends Controller
                 'status' => 'pending'
             ]);
 
+            // --- ĐÃ SỬA: KHỚP VỚI DATABASE THỰC TẾ ---
+            Notification::create([
+                'receiver_id' => $targetId, // Đổi từ user_id -> receiver_id
+                'sender_id'   => $myId,
+                'type'        => 'friend_request',
+                'is_read'     => 0
+            ]);
+            // ------------------------------------------
+
+            return response()->json(['message' => 'Đã gửi lời mời kết bạn thành công!']);
+
             return response()->json(['message' => 'Đã gửi lời mời kết bạn thành công!']);
         } catch (\Throwable $exception) {
             Log::error('sendRequest failed', [
@@ -219,8 +231,18 @@ class FriendshipController extends Controller
 
         if ($action === 'accept') {
             $friendship->update(['status' => 'accepted']);
+
+            // --- ĐÃ SỬA: BẮN THÔNG BÁO BÁO TIN MỪNG ---
+            Notification::create([
+                'receiver_id' => $requesterId, // Đổi từ user_id -> receiver_id
+                'sender_id'   => $myId,
+                'type'        => 'friend_accept', // Sửa cho khớp loại trong DB
+                'is_read'     => 0
+            ]);
+
             return response()->json(['message' => 'Đã chấp nhận kết bạn!']);
         } else {
+            // Xử lý khi bấm Từ chối (hủy lời mời)
             $friendship->update(['status' => 'cancelled']);
             return response()->json(['message' => 'Đã xóa lời mời.']);
         }

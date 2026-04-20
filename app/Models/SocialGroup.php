@@ -15,9 +15,8 @@ class SocialGroup extends Model
         'name',
         'description',
         'privacy',
-        'is_hidden',
-        'cover_image',
         'avatar_image',
+        'cover_image',
         'created_by',
     ];
 
@@ -28,6 +27,6 @@ class SocialGroup extends Model
 
     public function members()
     {
-        return $this->hasMany(GroupMember::class, 'social_group_id');
+        return $this->hasMany(GroupMember::class, 'group_id');
     }
 }

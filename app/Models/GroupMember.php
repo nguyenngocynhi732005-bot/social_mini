@@ -11,8 +11,10 @@ class GroupMember extends Model
 
     protected $table = 'group_members';
 
+    public $timestamps = false;
+
     protected $fillable = [
-        'social_group_id',
+        'group_id',
         'user_id',
         'role',
     ];
@@ -24,6 +26,6 @@ class GroupMember extends Model
 
     public function group()
     {
-        return $this->belongsTo(SocialGroup::class, 'social_group_id');
+        return $this->belongsTo(SocialGroup::class, 'group_id');
     }
 }

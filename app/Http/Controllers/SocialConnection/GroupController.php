@@ -5,10 +5,12 @@ namespace App\Http\Controllers\SocialConnection;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\GroupMember;
+use App\Models\GroupPost;
 use App\Models\SocialGroup;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class GroupController extends Controller
@@ -67,9 +69,6 @@ class GroupController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'privacy' => ['nullable', Rule::in(['public', 'private'])],
-            'is_hidden' => ['nullable', 'boolean'],
-            'cover_image' => ['nullable', 'string', 'max:2048'],
-            'avatar_image' => ['nullable', 'string', 'max:2048'],
         ]);
 
         $userId = $this->getCurrentUserId();
@@ -79,9 +78,6 @@ class GroupController extends Controller
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'privacy' => $validated['privacy'] ?? 'public',
-            'is_hidden' => (bool) ($validated['is_hidden'] ?? false),
-            'cover_image' => $validated['cover_image'] ?? null,
-            'avatar_image' => $validated['avatar_image'] ?? null,
             'created_by' => $userId,
         ]);
 
@@ -112,6 +108,7 @@ class GroupController extends Controller
         $userId = $this->getCurrentUserId();
         $groupColumn = $this->groupMemberGroupColumn();
 
+        // Lấy danh sách thành viên (kèm thông tin user thật)
         $members = GroupMember::query()
             ->with('user')
             ->where($groupColumn, $groupModel->id)
@@ -119,18 +116,33 @@ class GroupController extends Controller
             ->orderBy('id')
             ->get();
 
+        // Kiểm tra xem user hiện tại đã tham gia nhóm chưa
         $isJoined = GroupMember::query()
             ->where($groupColumn, $groupModel->id)
             ->where('user_id', $userId)
             ->exists();
 
+        // THÊM MỚI Ở ĐÂY: Kiểm tra xem user hiện tại có phải là Admin của nhóm không
+        $isAdmin = GroupMember::query()
+            ->where($groupColumn, $groupModel->id)
+            ->where('user_id', $userId)
+            ->where('role', 'admin')
+            ->exists();
+
+        $posts = GroupPost::query()
+            ->with('user')
+            ->where('social_group_id', $groupModel->id)
+            ->latest()
+            ->get();
+
         return view('social-connection.groups.show', [
             'group' => $groupModel,
             'members' => $members,
             'isJoined' => $isJoined,
+            'isAdmin' => $isAdmin,
+            'posts' => $posts,
         ]);
     }
-
     public function join(Request $request, $group)
     {
         $groupModel = $this->getGroupOrFail($group);
@@ -227,12 +239,22 @@ class GroupController extends Controller
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'privacy' => ['nullable', Rule::in(['public', 'private'])],
-            'is_hidden' => ['nullable', 'boolean'],
-            'cover_image' => ['nullable', 'string', 'max:2048'],
-            'avatar_image' => ['nullable', 'string', 'max:2048'],
+            'cover_image' => ['nullable', 'image', 'max:4096'],
+            'avatar_image' => ['nullable', 'image', 'max:4096'],
         ]);
 
-        $groupModel->fill($validated);
+        $groupModel->fill(collect($validated)->except(['cover_image', 'avatar_image'])->all());
+
+        if ($request->hasFile('cover_image')) {
+            $coverPath = $request->file('cover_image')->store('groups/covers', 'public');
+            $groupModel->cover_image = '/storage/' . $coverPath;
+        }
+
+        if ($request->hasFile('avatar_image')) {
+            $avatarPath = $request->file('avatar_image')->store('groups/avatars', 'public');
+            $groupModel->avatar_image = '/storage/' . $avatarPath;
+        }
+
         $groupModel->save();
 
         return response()->json([

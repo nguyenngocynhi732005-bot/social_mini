@@ -126,13 +126,14 @@
         const path = link.getAttribute('data-path');
 
         // 3. XÓA SẠCH tất cả các class active cũ (của Nhi đặt)
-        link.classList.remove('active-home', 'active-video', 'active-friends');
+        link.classList.remove('active-home', 'active-video', 'active-friends', 'active-groups');
 
         // 4. KIỂM TRA khớp trang để thêm lại class tương ứng
         if (path === currentPath || (currentPath === '/' && path === '/')) {
             if (path === '/') link.classList.add('active-home');
             else if (path === '/videos') link.classList.add('active-video');
             else if (path === '/friends') link.classList.add('active-friends');
+            else if (path === '/social/groups') link.classList.add('active-groups');
         }
     });
 }

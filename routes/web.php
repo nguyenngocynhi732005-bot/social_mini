@@ -7,6 +7,7 @@ use App\Http\Controllers\PostUploadController;
 use App\Http\Controllers\SocialConnection\SearchController;
 use App\Http\Controllers\SocialConnection\FriendshipController;
 use App\Http\Controllers\SocialConnection\GroupController;
+use App\Http\Controllers\SocialConnection\GroupPostController;
 use App\Http\Controllers\SocialConnection\GroupMemberController;
 use App\Http\Controllers\SocialConnection\NotificationController;
 use Illuminate\Support\Facades\Auth;
@@ -84,6 +85,7 @@ Route::prefix('social')->name('social.')->group(function () {
     Route::delete('/groups/{group}', [GroupController::class, 'destroy'])->name('groups.destroy');
     Route::post('/groups/{group}/join', [GroupController::class, 'join'])->name('groups.join');
     Route::post('/groups/{group}/leave', [GroupController::class, 'leave'])->name('groups.leave');
+    Route::post('/groups/{group}/posts', [GroupPostController::class, 'store'])->middleware('auth')->name('groups.posts.store');
 
     // Group members
     Route::post('/groups/{group}/members', [GroupMemberController::class, 'add'])->name('groups.members.add');
