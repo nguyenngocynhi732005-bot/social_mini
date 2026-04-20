@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
 
@@ -36,6 +37,20 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        $this->renderable(function (PostTooLargeException $exception, $request) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Video của bạn vượt giới hạn 2GB nên không đăng được.',
+                ], 413);
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'media' => 'Video của bạn vượt giới hạn 2GB nên không đăng được.',
+                ]);
         });
     }
 }
