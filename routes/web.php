@@ -4,7 +4,12 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MainController;
 use App\Http\Controllers\PostInteractionController;
 use App\Http\Controllers\PostUploadController;
-
+use App\Http\Controllers\SocialConnection\SearchController;
+use App\Http\Controllers\SocialConnection\FriendshipController;
+use App\Http\Controllers\SocialConnection\GroupController;
+use App\Http\Controllers\SocialConnection\GroupMemberController;
+use App\Http\Controllers\SocialConnection\NotificationController;
+use Illuminate\Support\Facades\Auth;
 
 // ========================================================================
 // THÀNH VIÊN 1 (NHI): NEWSFEED, ADMIN & POSTS
@@ -24,7 +29,7 @@ Route::post('/post/{post}/share', [PostInteractionController::class, 'share'])->
 // Trang Video
 Route::get('/videos', 'App\Http\Controllers\MainController@videos')->name('videos');
 // Trang Bạn bè
-Route::get('/friends', 'App\Http\Controllers\MainController@friends')->name('friends');
+Route::get('/friends', [FriendshipController::class, 'index'])->name('friends');
 
 // Test page
 Route::get('/test-buttons', function() {
@@ -44,12 +49,52 @@ Route::get('/stories/snapshot', [MainController::class, 'storiesSnapshot'])->nam
 Route::redirect('/login', '/')->name('login');
 Route::redirect('/register', '/')->name('register');
 
+Route::get('/dev-login/{id}', function ($id) {
+    auth()->loginUsingId($id);
+    return redirect('/friends');
+});
+
+Route::redirect('/social/friends', '/friends');
+
 
 // ========================================================================
 // THÀNH VIÊN 3: FRIENDS & SEARCH
 // ========================================================================
-Route::get('/search', 'App\Http\Controllers\FriendshipController@search')->name('search.friends');
 
+// Tạm thời bỏ middleware(['auth']) để dễ test
+Route::prefix('social')->name('social.')->group(function () {
+    
+    // Search
+    Route::get('/search', [SearchController::class, 'index'])->name('search.index');
+    Route::get('/search/autocomplete', [SearchController::class, 'autocomplete'])->name('search.autocomplete');
+
+    // Friendship
+    Route::post('/friends/request', [FriendshipController::class, 'sendRequest'])->name('friends.request');
+    Route::post('/friends/cancel', [FriendshipController::class, 'cancelRequest'])->name('friends.cancel');
+    Route::post('/friends/respond', [FriendshipController::class, 'respond'])->name('friends.respond');
+    Route::delete('/friends/{user}', [FriendshipController::class, 'unfriend'])->name('friends.unfriend');
+    Route::post('/friends/block', [FriendshipController::class, 'block'])->name('friends.block');
+    Route::delete('/friends/block/{user}', [FriendshipController::class, 'unblock'])->name('friends.unblock');
+
+    // Groups
+    Route::get('/groups', [GroupController::class, 'index'])->name('groups.index');
+    Route::post('/groups', [GroupController::class, 'store'])->name('groups.store');
+    Route::get('/groups/{group}', [GroupController::class, 'show'])->name('groups.show');
+    Route::put('/groups/{group}', [GroupController::class, 'update'])->name('groups.update');
+    Route::delete('/groups/{group}', [GroupController::class, 'destroy'])->name('groups.destroy');
+    Route::post('/groups/{group}/join', [GroupController::class, 'join'])->name('groups.join');
+    Route::post('/groups/{group}/leave', [GroupController::class, 'leave'])->name('groups.leave');
+
+    // Group members
+    Route::post('/groups/{group}/members', [GroupMemberController::class, 'add'])->name('groups.members.add');
+    Route::put('/groups/{group}/members/{user}', [GroupMemberController::class, 'updateRole'])->name('groups.members.role');
+    Route::delete('/groups/{group}/members/{user}', [GroupMemberController::class, 'remove'])->name('groups.members.remove');
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.readAll');
+});
 
 // ========================================================================
 // THÀNH VIÊN 4: PROFILE & SETTINGS

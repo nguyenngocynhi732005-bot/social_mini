@@ -96,10 +96,21 @@ public function videos(Request $request) {
 }
 
 public function friends(Request $request) {
-    if ($request->ajax()) {
-        return view('pages.friends_content');
-    }
-    return view('pages.friends');
+        $currentUserId = auth()->id() ?? 1;
+
+        $suggestedUsers = User::query()
+            ->where('id', '!=', $currentUserId)
+            ->orderBy('name')
+            ->limit(8)
+            ->get();
+
+        if ($request->ajax()) {
+            return view('pages.friends_content', compact('suggestedUsers'));
+        }
+
+        $highlightUser = null;
+
+        return view('pages.friends', compact('highlightUser', 'suggestedUsers'));
 }
     public function storeStory(Request $request) {
     $request->validate([

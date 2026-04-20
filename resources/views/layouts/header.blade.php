@@ -15,13 +15,14 @@
                 font-weight: 900;"> S
     </div>
 </a>
-            <form class="position-relative d-none d-md-block">
-                <input class="form-control rounded-pill bg-light border-0 ps-5" 
-                        type="search" placeholder="Tìm kiếm"    
-                        style="width: 200px; 
+            <form class="position-relative d-none d-md-block" action="{{ route('social.search.index') }}" method="GET" id="searchForm">
+                <input id="searchInput" class="form-control rounded-pill bg-light border-0 ps-5" 
+                        type="search" name="q" placeholder="Tìm kiếm" autocomplete="off"
+                    style="width: min(420px, 40vw); 
                         border: 1px solid #1f1c1c !important;
                         box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
                 <i class="fas fa-search position-absolute top-50 translate-middle-y ms-3 text-muted"></i> 
+                <div id="searchResults" class="dropdown-menu show search-dropdown-menu position-absolute w-100 mt-2 shadow-sm d-none" style="max-height: 320px; overflow-y: auto; overflow-x: hidden; z-index: 3000;"></div>
             </form>
         </div>
 
@@ -91,7 +92,128 @@
         color: #ffd166 !important;
         border-bottom: 3px solid #1f1c1c !important;
     }
+
+    .hover-bg-light {
+        transition: background-color 0.2s ease;
+    }
+
+    .hover-bg-light:hover {
+        background-color: #f8f9fa;
+    }
+
+    .search-result-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #searchForm {
+        z-index: 3000;
+    }
+
+    .search-dropdown-menu {
+        border: 1px solid rgba(31, 28, 28, 0.12);
+        border-radius: 12px;
+        padding: 0.35rem;
+        background: #fff;
+        z-index: 3000 !important;
+    }
+
+    .search-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        width: 100%;
+        padding: 0.45rem 0.55rem;
+        border-radius: 10px;
+        text-decoration: none;
+        color: #1f1c1c;
+    }
+
+    .search-item:hover {
+        background-color: #f4f7fb;
+    }
+
+    .search-item-name {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 600;
+    }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    const searchForm = document.getElementById('searchForm');
+    const autocompleteUrl = @json(route('social.search.autocomplete'));
+
+    if (!searchInput || !searchResults || !searchForm) {
+        return;
+    }
+
+    let debounceTimer = null;
+
+    function hideResults() {
+        searchResults.classList.add('d-none');
+        searchResults.innerHTML = '';
+    }
+
+    function renderResults(users) {
+        searchResults.innerHTML = '';
+
+        if (!users.length) {
+            searchResults.innerHTML = '<div class="text-muted px-3 py-2">Không tìm thấy kết quả</div>';
+            searchResults.classList.remove('d-none');
+            return;
+        }
+
+        users.forEach(user => {
+            const userHtml = `
+                <a href="/friends?target_id=${user.id}" class="search-item">
+                    <img src="${user.avatar_url}" alt="${user.name}" width="36" height="36" class="rounded-circle object-fit-cover" style="object-fit: cover;">
+                    <span class="search-item-name">${user.name}</span>
+                </a>
+            `;
+            searchResults.insertAdjacentHTML('beforeend', userHtml);
+        });
+
+        searchResults.classList.remove('d-none');
+    }
+
+    searchInput.addEventListener('input', function () {
+        const keyword = this.value.trim();
+
+        clearTimeout(debounceTimer);
+
+        if (keyword.length < 1) {
+            hideResults();
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            fetch(`${autocompleteUrl}?q=${encodeURIComponent(keyword)}`)
+                .then(response => response.json())
+                .then(renderResults)
+                .catch(() => hideResults());
+        }, 200);
+    });
+
+    searchInput.addEventListener('focus', function () {
+        if (searchResults.children.length > 0) {
+            searchResults.classList.remove('d-none');
+        }
+    });
+
+    document.addEventListener('click', function (event) {
+        if (!searchForm.contains(event.target)) {
+            hideResults();
+        }
+    });
+});
+</script>
 
         <!-- GÓC PHẢI: Chat & Profile -->
     <div class="d-flex align-items-center justify-content-end" style="flex: 1;">

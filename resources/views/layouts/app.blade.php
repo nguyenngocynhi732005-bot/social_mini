@@ -17,6 +17,41 @@
         @stack('styles')
       
       <style>
+            /* Tìm class này và sửa lại width */
+    .search-dropdown-menu {
+        width: 400px !important; /* Tăng từ 320px lên 400px cho nó rộng rinh luôn */
+        border-radius: 12px !important;
+        box-shadow: 0 12px 28px rgba(0,0,0,0.15) !important; /* Đổ bóng sâu hơn nhìn cho sang */
+        padding: 8px !important;
+        border: 1px solid #ddd !important; /* Thêm viền mảnh cho rõ khối */
+        margin-top: 10px;
+        left: 0; /* Căn lề trái */
+        background: white;
+    }
+
+    /* Thêm hiệu ứng cho cái tên không bị gãy dòng */
+    .search-item-name {
+        font-weight: 600;
+        font-size: 1rem;
+        color: #050505;
+        flex-grow: 1; /* Để tên chiếm hết phần còn lại */
+    }
+
+        /* Từng dòng người dùng xổ ra */
+        .search-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #050505;
+            transition: background 0.2s;
+            gap: 12px; /* Khoảng cách giữa ảnh và tên */
+        }
+        .search-item:hover {
+            background-color: #f2f2f2;
+            color: #050505;
+        }
         body { 
             background: linear-gradient(to top, #fff1eb 0%, #ace0f9 100%);
             min-height: 100vh;
