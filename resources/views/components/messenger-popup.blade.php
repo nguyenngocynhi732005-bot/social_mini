@@ -1174,6 +1174,33 @@ $popupSenderName = trim((string) ($popupSenderName ?: 'User'));
                 .replace(/'/g, '&#039;');
         }
 
+        function resolveAttachmentUrl(attachment) {
+            const directUrl = String(attachment?.file_url || '').trim();
+            if (directUrl) {
+                return directUrl;
+            }
+
+            const rawPath = String(attachment?.file_path || '').trim();
+            if (!rawPath) {
+                return '';
+            }
+
+            if (/^(https?:)?\/\//i.test(rawPath) || rawPath.startsWith('data:') || rawPath.startsWith('blob:')) {
+                return rawPath;
+            }
+
+            const normalizedPath = rawPath.replace(/\\/g, '/').replace(/^\/+/, '');
+            if (!normalizedPath) {
+                return '';
+            }
+
+            if (normalizedPath.startsWith('storage/')) {
+                return `/${normalizedPath}`;
+            }
+
+            return `/storage/${normalizedPath}`;
+        }
+
         function formatTime(isoTime) {
             if (!isoTime) return '';
             const date = new Date(isoTime);
@@ -1183,6 +1210,71 @@ $popupSenderName = trim((string) ($popupSenderName ?: 'User'));
             if (diffMinutes < 60) return `${diffMinutes} phút`;
             if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} giờ`;
             return `${Math.floor(diffMinutes / 1440)} ngày`;
+        }
+
+        function resolveConversationBackgroundUrl(rawUrl) {
+            const value = String(rawUrl || '').trim();
+            if (!value) {
+                return '';
+            }
+
+            if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+                return value;
+            }
+
+            const normalizedPath = value.replace(/\\/g, '/').replace(/^\/+/, '');
+            if (!normalizedPath) {
+                return '';
+            }
+
+            if (normalizedPath.startsWith('storage/')) {
+                return `/${normalizedPath}`;
+            }
+
+            if (normalizedPath.startsWith('chat-backgrounds/')) {
+                return `/storage/${normalizedPath}`;
+            }
+
+            return `/${normalizedPath}`;
+        }
+
+        function updateConversationBackground(conversationId, backgroundUrl) {
+            const targetId = Number(conversationId) || 0;
+            if (!targetId) {
+                return;
+            }
+
+            const conversation = conversations.find((item) => Number(item.id) === targetId);
+            if (!conversation) {
+                return;
+            }
+
+            conversation.chat_background_url = resolveConversationBackgroundUrl(backgroundUrl) || null;
+        }
+
+        function applyActiveThreadBackground() {
+            if (!threadMessages) {
+                return;
+            }
+
+            const activeConversationId = Number(activeConversation?.id) || 0;
+            const conversation = conversations.find((item) => Number(item.id) === activeConversationId);
+            const backgroundUrl = resolveConversationBackgroundUrl(conversation?.chat_background_url || '');
+
+            if (!backgroundUrl) {
+                threadMessages.style.backgroundImage = 'none';
+                threadMessages.style.backgroundColor = '#f8fafc';
+                threadMessages.style.backgroundBlendMode = 'normal';
+                return;
+            }
+
+            const safeUrl = backgroundUrl.replace(/"/g, '\\"');
+            threadMessages.style.backgroundImage = `url("${safeUrl}")`;
+            threadMessages.style.backgroundSize = 'cover';
+            threadMessages.style.backgroundPosition = 'center';
+            threadMessages.style.backgroundRepeat = 'no-repeat';
+            threadMessages.style.backgroundColor = '#f8fafc';
+            threadMessages.style.backgroundBlendMode = 'normal';
         }
 
         function toTimestamp(isoTime) {
@@ -1564,8 +1656,12 @@ $popupSenderName = trim((string) ($popupSenderName ?: 'User'));
 
         function renderAttachment(attachment) {
             const mimeType = String(attachment?.mime_type || '').toLowerCase();
-            const fileUrl = escapeHtml(attachment?.file_url || attachment?.file_path || '');
+            const fileUrl = escapeHtml(resolveAttachmentUrl(attachment));
             const fileName = escapeHtml(attachment?.file_name || 'attachment');
+
+            if (!fileUrl) {
+                return '';
+            }
 
             if (mimeType.startsWith('image/')) {
                 return `<img class="messenger-thread-media" src="${fileUrl}" alt="${fileName}">`;
@@ -2314,6 +2410,7 @@ $popupSenderName = trim((string) ($popupSenderName ?: 'User'));
             threadName.textContent = conversation.name || 'Người dùng';
             threadAvatar.src = conversation.avatar || 'https://ui-avatars.com/api/?name=User';
             threadStatus.textContent = getDefaultThreadStatus(conversation);
+            applyActiveThreadBackground();
             setView('thread');
 
             if (threadTypingIndicator) {
@@ -2428,6 +2525,19 @@ $popupSenderName = trim((string) ($popupSenderName ?: 'User'));
                     channel.listen('.MessageSent', (event) => {
                         handleRealtimeMessage(event?.message);
                         scheduleFastConversationSync(250);
+                    });
+
+                    channel.listen('.ChatBackgroundChanged', (event) => {
+                        const updatedConversationId = Number(event?.conversationId) || 0;
+                        if (!updatedConversationId) {
+                            return;
+                        }
+
+                        updateConversationBackground(updatedConversationId, event?.backgroundUrl || null);
+
+                        if (updatedConversationId === Number(activeConversation?.id || 0)) {
+                            applyActiveThreadBackground();
+                        }
                     });
 
                     channel.listen('.CallSignal', (event) => {
@@ -2737,6 +2847,9 @@ $popupSenderName = trim((string) ($popupSenderName ?: 'User'));
                 });
                 const payload = await response.json();
                 mergeConversations(payload);
+                if (activeConversation && !threadView.hidden) {
+                    applyActiveThreadBackground();
+                }
                 renderList();
                 syncRealtimeSubscriptions();
                 syncActiveThreadIfStale();

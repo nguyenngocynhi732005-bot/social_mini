@@ -127,6 +127,15 @@
         filter: drop-shadow(0 10px 18px rgba(255, 117, 181, 0.18));
     }
 
+    .auth-screen-logo img.login-logo-image {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        object-fit: cover;
+        box-shadow: 0 8px 16px rgba(124, 77, 255, 0.18);
+        display: block;
+    }
+
     .auth-screen-panel {
         border-radius: 30px;
         padding: 26px 24px 22px;

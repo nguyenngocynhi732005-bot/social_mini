@@ -7,8 +7,8 @@
         </x-slot>
 
         <div class="auth-login-hero">
-            <h1>Hello Again!</h1>
-            <p>Welcome back, you've been missed!</p>
+            <h1>Xin chào</h1>
+            <p>Chào mừng bạn quay lại, chúng tôi nhớ bạn!</p>
         </div>
 
         <!-- Session Status -->
@@ -29,12 +29,14 @@
 
             <!-- Password -->
             <div class="mt-4">
-                <x-label for="password" :value="__('Password')" />
-
-                <x-input id="password" class="block mt-1 w-full"
-                    type="password"
-                    name="password"
-                    required autocomplete="current-password" />
+                <x-label for="password" :value="__('Mật khẩu')" />
+                <div class="password-toggle-wrap mt-1">
+                    <x-input id="password" class="block w-full pr-11"
+                        type="password"
+                        name="password"
+                        required autocomplete="current-password" />
+                    <button type="button" class="password-toggle-btn" data-password-toggle data-target="password" aria-label="Hiện mật khẩu" title="Hiện mật khẩu">👁</button>
+                </div>
             </div>
 
             <!-- Remember Me -->
@@ -68,15 +70,6 @@
 </x-guest-layout>
 
 <style>
-    .login-logo-image {
-        width: 84px;
-        height: 84px;
-        border-radius: 22px;
-        object-fit: cover;
-        box-shadow: 0 10px 20px rgba(124, 77, 255, 0.24);
-        display: block;
-    }
-
     .auth-login-hero {
         text-align: center;
         margin-bottom: 18px;
@@ -136,4 +129,49 @@
         font-size: 14px;
         font-weight: 700;
     }
+
+    .password-toggle-wrap {
+        position: relative;
+    }
+
+    .password-toggle-btn {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: 0;
+        background: transparent;
+        color: #4b5563;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 15px;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .password-toggle-btn:hover {
+        background: rgba(99, 102, 241, 0.12);
+    }
 </style>
+
+<script>
+    (function() {
+        document.querySelectorAll('[data-password-toggle]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const targetId = button.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                if (!input) return;
+
+                const showing = input.type === 'text';
+                input.type = showing ? 'password' : 'text';
+                button.textContent = showing ? '👁' : '🙈';
+                button.setAttribute('aria-label', showing ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
+                button.setAttribute('title', showing ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
+            });
+        });
+    })();
+</script>

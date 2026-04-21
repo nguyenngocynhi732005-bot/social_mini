@@ -31,6 +31,8 @@
         const uploadFeedback = document.getElementById('postUploadFeedback');
         const progressWrap = document.getElementById('postUploadProgressWrap');
         const progressBar = document.getElementById('postUploadProgressBar');
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
         const liveRecordOpenBtn = document.getElementById('liveRecordOpenBtn');
         const liveRecorderPanel = document.getElementById('liveRecorderPanel');
         const videoModal = document.getElementById('videoModal');
@@ -89,6 +91,10 @@
 
                 form.dataset.processingUpload = '1';
 
+                if ((!mediaInput || !mediaInput.files || mediaInput.files.length === 0) && typeof ensureLiveVideoSelectedForUpload === 'function') {
+                    ensureLiveVideoSelectedForUpload();
+                }
+
                 const selectedFile = mediaInput && mediaInput.files && mediaInput.files[0] ? mediaInput.files[0] : null;
                 const chunkUrl = form.getAttribute('data-chunk-url') || '';
                 const completeUrl = form.getAttribute('data-complete-url') || '';
@@ -117,7 +123,7 @@
                             selectedFile,
                             chunkUrl,
                             completeUrl,
-                            '{{ csrf_token() }}',
+                            csrfToken,
                             progressBar,
                             uploadFeedback
                         );

@@ -47,7 +47,7 @@ class AlterUsersTable extends Migration
                 $table->string('user_id')->nullable()->after('unique_id');
             }
             if (!Schema::hasColumn('users', 'Email')) {
-                $table->string('Email')->unique()->after('user_id');
+                $table->string('Email')->nullable()->unique()->after('user_id');
             }
             if (!Schema::hasColumn('users', 'Phone')) {
                 $table->string('Phone')->nullable()->after('Email');

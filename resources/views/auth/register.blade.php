@@ -14,7 +14,7 @@
 
             <!-- Name -->
             <div>
-                <x-label for="Name" value="Name" />
+                <x-label for="Name" value="Tên tài khoản" />
                 <x-input id="Name" class="block mt-1 w-full" type="text" name="Name" required />
             </div>
 
@@ -26,7 +26,7 @@
 
             <!-- Phone -->
             <div class="mt-4">
-                <x-label for="Phone" value="Phone" />
+                <x-label for="Phone" value="Số điện thoại" />
                 <x-input id="Phone" class="block mt-1 w-full" type="text" name="Phone" />
             </div>
 
@@ -49,13 +49,16 @@
 
             <!-- Password -->
             <div class="mt-4">
-                <x-label for="Password" value="Password" />
-                <x-input id="Password" class="block mt-1 w-full" type="password" name="Password" required />
+                <x-label for="Password" value="Mật khẩu" />
+                <div class="password-toggle-wrap mt-1">
+                    <x-input id="Password" class="block w-full pr-11" type="password" name="Password" required />
+                    <button type="button" class="password-toggle-btn" data-password-toggle data-target="Password" aria-label="Hiện mật khẩu" title="Hiện mật khẩu">👁</button>
+                </div>
             </div>
 
             <!-- Confirm -->
             <div class="mt-4">
-                <x-label for="Password_confirmation" value="Confirm Password" />
+                <x-label for="Password_confirmation" value="Xác nhận mật khẩu" />
                 <x-input id="Password_confirmation" class="block mt-1 w-full" type="password" name="Password_confirmation" required />
             </div>
 
@@ -73,11 +76,56 @@
 
 <style>
     .login-logo-image {
-        width: 84px;
-        height: 84px;
-        border-radius: 22px;
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
         object-fit: cover;
-        box-shadow: 0 10px 20px rgba(124, 77, 255, 0.24);
+        box-shadow: 0 8px 16px rgba(124, 77, 255, 0.18);
         display: block;
     }
+
+    .password-toggle-wrap {
+        position: relative;
+    }
+
+    .password-toggle-btn {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: 0;
+        background: transparent;
+        color: #4b5563;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 15px;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .password-toggle-btn:hover {
+        background: rgba(99, 102, 241, 0.12);
+    }
 </style>
+
+<script>
+    (function() {
+        document.querySelectorAll('[data-password-toggle]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const targetId = button.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                if (!input) return;
+
+                const showing = input.type === 'text';
+                input.type = showing ? 'password' : 'text';
+                button.textContent = showing ? '👁' : '🙈';
+                button.setAttribute('aria-label', showing ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
+                button.setAttribute('title', showing ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
+            });
+        });
+    })();
+</script>

@@ -1454,6 +1454,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             form.dataset.processingUpload = '1';
 
+            if ((!mediaInput || !mediaInput.files || mediaInput.files.length === 0) && typeof ensureLiveVideoSelectedForUpload === 'function') {
+                ensureLiveVideoSelectedForUpload();
+            }
+
             const selectedFile = mediaInput && mediaInput.files && mediaInput.files[0] ? mediaInput.files[0] : null;
             const chunkUrl = form.getAttribute('data-chunk-url') || '';
             const completeUrl = form.getAttribute('data-complete-url') || '';

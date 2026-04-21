@@ -316,7 +316,7 @@ if ($testConversationId <= 0) {
             --ig-border: #e5d1df;
             --ig-muted: #f6dff0;
             --ig-text: #2a2230;
-            --ig-sidebar-bg: linear-gradient(180deg, #4a35bf 0%, #4d3fc8 28%, #6142cf 52%, #c023b0 74%, #c44190 100%);
+            --ig-sidebar-bg: linear-gradient(135deg, #12d4d8 0%, #9f71f1 100%);
             --ig-sidebar-item-hover: rgba(255, 255, 255, 0.18);
             --ig-sidebar-item-active: rgba(255, 255, 255, 0.30);
             --ig-bubble-me: #ffffff;
@@ -2601,17 +2601,51 @@ if ($testConversationId <= 0) {
                 });
             }
 
+            function resolveConversationBackgroundUrl(rawUrl) {
+                const value = String(rawUrl || '').trim();
+                if (!value) {
+                    return '';
+                }
+
+                if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+                    return value;
+                }
+
+                const normalizedPath = value.replace(/\\/g, '/').replace(/^\/+/, '');
+                if (!normalizedPath) {
+                    return '';
+                }
+
+                if (normalizedPath.startsWith('storage/')) {
+                    return `/${normalizedPath}`;
+                }
+
+                if (normalizedPath.startsWith('chat-backgrounds/')) {
+                    return `/storage/${normalizedPath}`;
+                }
+
+                return `/${normalizedPath}`;
+            }
+
             function setChatBackgroundImage(imageDataUrl) {
-                // Keep thread area white even if a conversation previously stored a background image.
-                dom.chatBox.style.backgroundImage = 'none';
-                dom.chatBox.style.backgroundColor = '#ffffff';
+                const resolvedUrl = resolveConversationBackgroundUrl(imageDataUrl);
+                if (!resolvedUrl) {
+                    dom.chatBox.style.backgroundImage = 'none';
+                    dom.chatBox.style.backgroundColor = '#ffffff';
+                    dom.chatBox.style.backgroundBlendMode = 'normal';
+                    return;
+                }
+
+                const safeUrl = resolvedUrl.replace(/"/g, '\\"');
+                dom.chatBox.style.backgroundImage = `url("${safeUrl}")`;
+                dom.chatBox.style.backgroundColor = '#f4f5f7';
                 dom.chatBox.style.backgroundBlendMode = 'normal';
             }
 
             function setConversationBackground(conversationId, backgroundUrl) {
                 const conversation = state.conversations.find((item) => Number(item.id) === Number(conversationId));
                 if (!conversation) return;
-                conversation.chat_background_url = backgroundUrl || null;
+                conversation.chat_background_url = resolveConversationBackgroundUrl(backgroundUrl) || null;
             }
 
             function applyActiveConversationBackground() {
@@ -2666,6 +2700,33 @@ if ($testConversationId <= 0) {
                     .replace(/>/g, '&gt;')
                     .replace(/"/g, '&quot;')
                     .replace(/'/g, '&#039;');
+            }
+
+            function resolveAttachmentUrl(attachment) {
+                const directUrl = String(attachment?.file_url || '').trim();
+                if (directUrl) {
+                    return directUrl;
+                }
+
+                const rawPath = String(attachment?.file_path || '').trim();
+                if (!rawPath) {
+                    return '';
+                }
+
+                if (/^(https?:)?\/\//i.test(rawPath) || rawPath.startsWith('data:') || rawPath.startsWith('blob:')) {
+                    return rawPath;
+                }
+
+                const normalizedPath = rawPath.replace(/\\/g, '/').replace(/^\/+/, '');
+                if (!normalizedPath) {
+                    return '';
+                }
+
+                if (normalizedPath.startsWith('storage/')) {
+                    return `/${normalizedPath}`;
+                }
+
+                return `/storage/${normalizedPath}`;
             }
 
             function formatShortTime(isoTime) {
@@ -3314,8 +3375,12 @@ if ($testConversationId <= 0) {
 
                 return attachments.map((attachment) => {
                     const mimeType = String(attachment.mime_type || '');
-                    const fileUrl = escapeHtml(attachment.file_url || attachment.file_path || '');
+                    const fileUrl = escapeHtml(resolveAttachmentUrl(attachment));
                     const fileName = escapeHtml(attachment.file_name || 'attachment');
+
+                    if (!fileUrl) {
+                        return '';
+                    }
 
                     if (mimeType.startsWith('image/')) {
                         return `<img class="ig-message-media" src="${fileUrl}" alt="${fileName}">`;

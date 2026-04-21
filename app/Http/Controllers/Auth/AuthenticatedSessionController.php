@@ -43,7 +43,9 @@ class AuthenticatedSessionController extends Controller
                 $updates['UpdatedAt'] = now();
             }
 
-            $user->forceFill($updates)->save();
+            if ($user instanceof \Illuminate\Database\Eloquent\Model) {
+                $user->forceFill($updates)->save();
+            }
         }
 
         return redirect()->to(RouteServiceProvider::HOME);
@@ -67,7 +69,9 @@ class AuthenticatedSessionController extends Controller
                 $updates['UpdatedAt'] = now();
             }
 
-            $user->forceFill($updates)->save();
+            if ($user instanceof \Illuminate\Database\Eloquent\Model) {
+                $user->forceFill($updates)->save();
+            }
         }
 
         Auth::guard('web')->logout();

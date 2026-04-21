@@ -19,6 +19,10 @@ class RedirectIfAuthenticated
      */
     public function handle(Request $request, Closure $next, ...$guards)
     {
+        if ($request->routeIs('password.reset', 'password.update')) {
+            return $next($request);
+        }
+
         $guards = empty($guards) ? [null] : $guards;
 
         foreach ($guards as $guard) {

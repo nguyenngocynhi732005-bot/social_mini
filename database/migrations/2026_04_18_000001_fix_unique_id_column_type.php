@@ -14,11 +14,13 @@ class FixUniqueIdColumnType extends Migration
      */
     public function up()
     {
-        // Sửa kiểu cột unique_id từ numeric sang text/string
-        Schema::table('users', function (Blueprint $table) {
-            // Sử dụng raw SQL để đảm bảo cột unique_id là VARCHAR/TEXT
-            DB::statement('ALTER TABLE users MODIFY COLUMN unique_id VARCHAR(255) NOT NULL');
-        });
+        if (Schema::hasTable('users') && Schema::hasColumn('users', 'BirthDate')) {
+            DB::table('users')
+                ->where('BirthDate', '0000-00-00')
+                ->update(['BirthDate' => '2000-01-01']);
+        }
+
+        DB::statement('ALTER TABLE users MODIFY COLUMN unique_id VARCHAR(255) NOT NULL');
     }
 
     /**
