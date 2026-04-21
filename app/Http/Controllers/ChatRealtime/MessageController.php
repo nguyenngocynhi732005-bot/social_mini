@@ -139,33 +139,26 @@ class MessageController extends Controller
         $friendIds = $isLocalTestMode ? null : $this->resolveAcceptedFriendIds((int) $senderId);
 
         if ($friendIds === null) {
-            $users = DB::table('users')
+            $users = User::query()
                 ->where('ID', '!=', (int) $senderId)
                 ->get();
         } elseif (empty($friendIds)) {
             return response()->json(collect());
         } else {
-            $users = DB::table('users')
+            $users = User::query()
                 ->whereIn('ID', $friendIds)
                 ->get();
         }
 
-        $profiles = $users->map(function ($user) use ($senderId) {
-            $raw = (array) $user;
-            $normalized = [];
-
-            foreach ($raw as $key => $value) {
-                $normalized[strtolower((string) $key)] = $value;
-            }
-
-            $peerId = (int) ($normalized['id'] ?? $normalized['user_id'] ?? $normalized['unique_id'] ?? 0);
+        $profiles = $users->map(function (User $user) use ($senderId) {
+            $peerId = (int) ($user->ID ?? $user->id ?? $user->user_id ?? 0);
             if ($peerId <= 0 || $peerId === (int) $senderId) {
                 return null;
             }
 
             return [
                 'peer_id' => $peerId,
-                'normalized' => $normalized,
+                'user' => $user,
             ];
         })->filter()->values();
 
@@ -213,35 +206,30 @@ class MessageController extends Controller
 
         $conversations = $profiles->map(function (array $profile) use ($conversationByPeerId, $lastMessages, $unreadCounts, $hasChatBackgroundColumn) {
             $peerId = (int) $profile['peer_id'];
-            $normalized = (array) $profile['normalized'];
+            $user = $profile['user'] ?? null;
             $conversation = $conversationByPeerId[$peerId] ?? null;
 
-            if (!$conversation) {
+            if (!$conversation || !$user instanceof User) {
                 return null;
             }
 
+            $normalized = array_change_key_case((array) $user->getAttributes(), CASE_LOWER);
             $conversationId = (int) $conversation->id;
             $lastMessage = $lastMessages->get($conversationId);
             $lastMessageAt = optional(optional($lastMessage)->created_at)->toIso8601String();
             $unreadCount = (int) ($unreadCounts->get($conversationId) ?? 0);
 
-            $name = trim((string) ($normalized['name'] ?? ''));
+            $name = trim((string) $user->name);
             if ($name === '') {
-                $first = trim((string) ($normalized['first_name'] ?? ''));
-                $last = trim((string) ($normalized['last_name'] ?? ''));
-                $name = trim($first . ' ' . $last);
-            }
-
-            $email = trim((string) ($normalized['email'] ?? ''));
-            if ($email === '') {
-                $email = trim((string) ($normalized['mail'] ?? ''));
+                $name = trim((string) ($user->First_name ?? '') . ' ' . (string) ($user->Last_name ?? ''));
             }
 
             if ($name === '') {
-                $name = (string) ($email ?: ('User #' . $peerId));
+                $name = (string) (($user->Email ?? $user->email ?? '') ?: ('User #' . $peerId));
             }
 
-            $avatar = $this->resolveAvatarUrl($normalized, $name, $email);
+            $email = trim((string) ($user->email ?? $user->Email ?? ''));
+            $avatar = (string) $user->avatar_url;
             $recentActivityAt = $this->resolveRecentActivityAt($normalized, $lastMessageAt);
             $isRecentlyActive = $this->resolveIsOnline($normalized);
 

@@ -1,6 +1,7 @@
 @php
 $manifestPath = public_path('mix-manifest.json');
 $mixManifest = is_file($manifestPath) ? (json_decode(file_get_contents($manifestPath), true) ?: []) : [];
+$requestedPeerId = (int) request()->query('peer_id', 0);
 $testConversationId = (int) request()->query('conversation_id', 0);
 if ($testConversationId <= 0) {
     $testConversationId=(int) \App\Models\Conversation::query()->orderBy('id')->value('id');
@@ -36,6 +37,10 @@ if ($testConversationId <= 0) {
     if ($displayUsername === '') {
     $displayUsername = (string) (optional($activeUser)->Email ?: ('User #' . $activeSenderId));
     }
+
+    $currentUserAvatarUrl = $activeUser && !empty($activeUser->avatar_url)
+        ? $activeUser->avatar_url
+        : 'https://ui-avatars.com/api/?name=' . urlencode($displayUsername) . '&background=eceef2&color=111827&size=96';
     @endphp
 
     <script>
@@ -46,8 +51,10 @@ if ($testConversationId <= 0) {
         data-current-user-id="{{ $isTestMode ? $activeSenderId : $currentUserId }}"
         data-sender-id="{{ $activeSenderId }}"
         data-sender-name="{{ $displayUsername }}"
+        data-profile-url-template="{{ url('/profile/__ID__') }}"
         data-test-mode="{{ $isTestMode ? 1 : 0 }}"
         data-default-conversation-id="{{ $testConversationId ?? '' }}"
+        data-default-peer-id="{{ $requestedPeerId > 0 ? $requestedPeerId : '' }}"
         data-csrf-token="{{ csrf_token() }}"
         data-conversations-url="{{ route('chat.conversations.index') }}"
         data-messages-url-template="{{ url('/chat/conversations/__ID__/messages') }}"
@@ -66,6 +73,14 @@ if ($testConversationId <= 0) {
                             <path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                         </svg>
                     </a>
+                    <img
+                        id="ig-current-user-avatar"
+                        src="{{ $currentUserAvatarUrl }}"
+                        data-profile-user-id="{{ $activeSenderId }}"
+                        data-current-user-avatar="1"
+                        title="Xem trang cá nhân"
+                        alt="Current user avatar"
+                    >
                     <h1>{{ $displayUsername }}</h1>
                 </div>
                 <div class="ig-sidebar-head-actions">
@@ -91,7 +106,7 @@ if ($testConversationId <= 0) {
         <section class="ig-thread">
             <header class="ig-thread-head" id="thread-head">
                 <div class="ig-thread-user">
-                    <img id="thread-avatar" src="https://ui-avatars.com/api/?name=VibeTalk&background=edeef0&color=1f2937" alt="Avatar">
+                    <img id="thread-avatar" src="https://ui-avatars.com/api/?name=VibeTalk&background=edeef0&color=1f2937" alt="Avatar" title="Xem trang cá nhân">
                     <div>
                         <h2 id="thread-name">Chọn cuộc trò chuyện</h2>
                         <p id="thread-status">Bắt đầu nhắn tin trong khung bên dưới</p>
@@ -119,7 +134,7 @@ if ($testConversationId <= 0) {
 
             <main id="chat-box" class="ig-messages" aria-live="polite">
                 <section id="ig-thread-intro" class="ig-thread-intro">
-                    <img id="intro-avatar" src="https://ui-avatars.com/api/?name=VibeTalk&background=dfe3e8&color=111827" alt="Avatar">
+                    <img id="intro-avatar" src="https://ui-avatars.com/api/?name=VibeTalk&background=dfe3e8&color=111827" alt="Avatar" title="Xem trang cá nhân">
                     <h3 id="intro-name">VibeTalk</h3>
                     <p id="intro-handle">vibetalk</p>
                     <button type="button">Xem trang cá nhân</button>
@@ -380,6 +395,15 @@ if ($testConversationId <= 0) {
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .ig-user-row img {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            flex: 0 0 auto;
         }
 
         .ig-home-link {
@@ -776,6 +800,10 @@ if ($testConversationId <= 0) {
             flex: 0 0 auto;
             align-self: flex-end;
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+        }
+
+        img[data-profile-user-id] {
+            cursor: pointer;
         }
 
         .ig-message-content {
@@ -1718,6 +1746,55 @@ if ($testConversationId <= 0) {
             if (!app) return;
 
             const authUserId = Number(app.dataset.currentUserId) || 0;
+            const currentUserAvatarElements = () => Array.from(document.querySelectorAll('img[data-current-user-avatar="1"]'));
+
+            function updateCurrentUserAvatar(avatarUrl) {
+                if (!avatarUrl) {
+                    return;
+                }
+
+                currentUserAvatarElements().forEach(function (img) {
+                    img.src = avatarUrl;
+                });
+            }
+
+            function readAvatarPayload(rawValue) {
+                if (!rawValue) {
+                    return '';
+                }
+
+                try {
+                    var parsed = JSON.parse(rawValue);
+                    return parsed && parsed.avatarUrl ? parsed.avatarUrl : '';
+                } catch (error) {
+                    return '';
+                }
+            }
+
+            window.addEventListener('social:avatar-updated', function (event) {
+                updateCurrentUserAvatar(event && event.detail ? event.detail.avatarUrl : '');
+            });
+
+            window.addEventListener('storage', function (event) {
+                if (!event || event.key !== 'social:avatar-updated') {
+                    return;
+                }
+
+                updateCurrentUserAvatar(readAvatarPayload(event.newValue));
+            });
+
+            if ('BroadcastChannel' in window) {
+                var avatarChannel = new BroadcastChannel('social-avatar');
+                avatarChannel.addEventListener('message', function (event) {
+                    if (event && event.data && event.data.type === 'avatar-updated') {
+                        updateCurrentUserAvatar(event.data.avatarUrl || '');
+                    }
+                });
+
+                window.addEventListener('beforeunload', function () {
+                    avatarChannel.close();
+                });
+            }
 
             const dom = {
                 searchInput: document.getElementById('ig-search-input'),
@@ -1779,8 +1856,10 @@ if ($testConversationId <= 0) {
             const state = {
                 currentUserId: Number(app.dataset.currentUserId) || 0,
                 senderId: Number(app.dataset.senderId) || 0,
+                profileUrlTemplate: app.dataset.profileUrlTemplate || '/profile/__ID__',
                 testMode: String(app.dataset.testMode || '0') === '1',
                 defaultConversationId: Number(app.dataset.defaultConversationId) || null,
+                defaultPeerId: Number(app.dataset.defaultPeerId) || null,
                 csrfToken: app.dataset.csrfToken || '',
                 conversationsUrl: app.dataset.conversationsUrl,
                 messagesUrlTemplate: app.dataset.messagesUrlTemplate,
@@ -2693,6 +2772,33 @@ if ($testConversationId <= 0) {
                 return `https://ui-avatars.com/api/?name=${encoded}&background=eceef2&color=111827&size=96`;
             }
 
+            function resolveMessageSenderAvatar(message, mine, senderName) {
+                if (mine) {
+                    const currentUserAvatar = document.getElementById('ig-current-user-avatar');
+                    const ownAvatar = String(currentUserAvatar?.getAttribute('src') || '').trim();
+                    return ownAvatar || avatarUrl(senderName || app.dataset.senderName || 'You');
+                }
+
+                const senderAvatar = String(
+                    message?.sender?.avatar_url ||
+                    message?.sender?.avatar ||
+                    message?.sender_avatar_url ||
+                    message?.sender_avatar ||
+                    ''
+                ).trim();
+
+                if (senderAvatar) {
+                    return senderAvatar;
+                }
+
+                const activeAvatar = String(state.activeConversationAvatar || '').trim();
+                if (activeAvatar) {
+                    return activeAvatar;
+                }
+
+                return avatarUrl(senderName || state.activeConversationName);
+            }
+
             function escapeHtml(text) {
                 return String(text || '')
                     .replace(/&/g, '&amp;')
@@ -3025,10 +3131,11 @@ if ($testConversationId <= 0) {
                 const renderItem = (conversation) => {
                     const isActive = Number(conversation.id) === Number(state.activeConversationId);
                     const activeDot = conversation.is_recently_active ? '<span class="ig-conversation-active-dot" aria-label="Đang hoạt động"></span>' : '';
+                    const peerId = Number(conversation.peer_id) || 0;
                     return `
                     <button class="ig-conversation-item ${isActive ? 'is-active' : ''}" type="button" data-conversation-id="${conversation.id}">
                         <span class="ig-conversation-avatar-wrap">
-                            <img class="ig-conversation-avatar" src="${escapeHtml(conversation.avatar)}" alt="${escapeHtml(conversation.name)}">
+                            <img class="ig-conversation-avatar" src="${escapeHtml(conversation.avatar)}" alt="${escapeHtml(conversation.name)}" ${peerId ? `data-profile-user-id="${peerId}" title="Xem trang cá nhân"` : ''}>
                             ${activeDot}
                         </span>
                         <div class="ig-conversation-main">
@@ -3060,9 +3167,26 @@ if ($testConversationId <= 0) {
                 dom.threadName.textContent = state.activeConversationName;
                 dom.threadStatus.textContent = 'Đang hoạt động';
                 dom.threadAvatar.src = state.activeConversationAvatar;
+                if (state.activePeerId) {
+                    dom.threadAvatar.setAttribute('data-profile-user-id', String(state.activePeerId));
+                    dom.introAvatar.setAttribute('data-profile-user-id', String(state.activePeerId));
+                } else {
+                    dom.threadAvatar.removeAttribute('data-profile-user-id');
+                    dom.introAvatar.removeAttribute('data-profile-user-id');
+                }
                 dom.introAvatar.src = state.activeConversationAvatar;
                 dom.introName.textContent = state.activeConversationName;
                 dom.introHandle.textContent = handle;
+            }
+
+            function openProfileByUserId(rawUserId) {
+                const userId = Number(rawUserId) || 0;
+                if (!userId) {
+                    return;
+                }
+
+                const profileUrl = String(state.profileUrlTemplate || '/profile/__ID__').replace('__ID__', encodeURIComponent(String(userId)));
+                window.location.href = profileUrl;
             }
 
             function resetRemoteTypingIndicator(conversationId = state.activeConversationId) {
@@ -3418,7 +3542,8 @@ if ($testConversationId <= 0) {
 
                 const mine = isMyMessage(message);
                 const senderName = message.sender?.name || state.activeConversationName;
-                const senderAvatar = avatarUrl(senderName);
+                const senderAvatar = resolveMessageSenderAvatar(message, mine, senderName);
+                const senderId = Number(message?.sender_id || message?.sender?.id || 0) || (mine ? Number(state.senderId) || 0 : Number(state.activePeerId) || 0);
                 const isRecalled = Boolean(message && (message.type === 'recalled' || message.is_recalled));
                 const stickerId = isRecalled ? null : parseStickerIdFromBody(message.body);
                 const sticker = stickerId ? STICKER_CATALOG[stickerId] : null;
@@ -3430,7 +3555,7 @@ if ($testConversationId <= 0) {
                 const recallButton = mine && messageId && !isRecalled ? `<button type="button" class="ig-message-recall-btn" data-message-recall="${messageId}">Thu hồi</button>` : '';
                 const stickerMarkup = sticker ? `<img class="ig-message-media ig-message-sticker" src="${sticker.url}" alt="${escapeHtml(sticker.label)}">` : '';
                 const reactionMarkup = message.reaction ? `<span class="ig-message-reaction">${escapeHtml(message.reaction)}</span>` : '';
-                const avatarMarkup = !mine ? `<img class="ig-message-avatar" src="${senderAvatar}" alt="${escapeHtml(senderName)}">` : '';
+                const avatarMarkup = !mine ? `<img class="ig-message-avatar" src="${senderAvatar}" alt="${escapeHtml(senderName)}" ${senderId ? `data-profile-user-id="${senderId}" title="Xem trang cá nhân"` : ''}>` : '';
                 const sendStatusText = isSendError ? (String(options?.errorMessage || 'Gửi thất bại')) : 'Đang gửi';
                 const sendStatusMarkup = (isPending || isSendError) ?
                     `<span class="ig-message-send-status ${isSendError ? 'is-error' : 'is-pending'}" title="${escapeHtml(sendStatusText)}" aria-label="${escapeHtml(sendStatusText)}">${isSendError ? '!' : '...'}</span>` :
@@ -3628,9 +3753,13 @@ if ($testConversationId <= 0) {
                 state.conversations = normalized;
                 renderConversationList();
 
+                const conversationByPeerId = state.defaultPeerId ?
+                    normalized.find((c) => Number(c.peer_id) === Number(state.defaultPeerId)) :
+                    null;
+
                 const targetConversationId = state.defaultConversationId && normalized.some((c) => c.id === state.defaultConversationId) ?
                     state.defaultConversationId :
-                    normalized[0]?.id;
+                    (conversationByPeerId?.id || normalized[0]?.id);
 
                 if (targetConversationId) {
                     await selectConversation(targetConversationId);
@@ -4304,6 +4433,14 @@ if ($testConversationId <= 0) {
             }
 
             dom.conversationList.addEventListener('click', function(event) {
+                const avatar = event.target.closest('[data-profile-user-id]');
+                if (avatar) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openProfileByUserId(avatar.getAttribute('data-profile-user-id'));
+                    return;
+                }
+
                 const button = event.target.closest('[data-conversation-id]');
                 if (!button) return;
                 selectConversation(Number(button.dataset.conversationId));
@@ -4321,6 +4458,14 @@ if ($testConversationId <= 0) {
             });
 
             dom.chatBox.addEventListener('click', function(event) {
+                const avatar = event.target.closest('[data-profile-user-id]');
+                if (avatar) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openProfileByUserId(avatar.getAttribute('data-profile-user-id'));
+                    return;
+                }
+
                 const button = event.target.closest('[data-message-recall]');
                 if (!button) return;
 
@@ -4332,6 +4477,31 @@ if ($testConversationId <= 0) {
                     alert(error.message || 'Không thể thu hồi tin nhắn.');
                 });
             });
+
+            if (dom.threadAvatar) {
+                dom.threadAvatar.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openProfileByUserId(dom.threadAvatar.getAttribute('data-profile-user-id'));
+                });
+            }
+
+            if (dom.introAvatar) {
+                dom.introAvatar.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openProfileByUserId(dom.introAvatar.getAttribute('data-profile-user-id'));
+                });
+            }
+
+            const currentUserAvatar = document.getElementById('ig-current-user-avatar');
+            if (currentUserAvatar) {
+                currentUserAvatar.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openProfileByUserId(currentUserAvatar.getAttribute('data-profile-user-id'));
+                });
+            }
 
             dom.chatBox.addEventListener('scroll', handleChatBoxScroll, {
                 passive: true

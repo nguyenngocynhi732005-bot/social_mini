@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Friendship;
 use App\Models\Song;
 use App\Models\Post;
 use App\Models\Story;
@@ -124,60 +125,22 @@ private function getFriendIds(int $viewerId): array
         return [];
     }
 
-    $friendships = DB::table('friendships')->where('status', 1);
-
-    if (Schema::hasColumn('friendships', 'user_id') && Schema::hasColumn('friendships', 'friend_id')) {
-        return $friendships
-            ->where(function ($query) use ($viewerId) {
-                $query->where('user_id', $viewerId)->orWhere('friend_id', $viewerId);
-            })
-            ->get(['user_id', 'friend_id'])
-            ->map(function ($row) use ($viewerId) {
-                return (int) ($row->user_id == $viewerId ? $row->friend_id : $row->user_id);
-            })
-            ->filter(function ($id) use ($viewerId) {
-                return $id > 0 && $id !== $viewerId;
-            })
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    if (Schema::hasColumn('friendships', 'sender_id') && Schema::hasColumn('friendships', 'receiver_id')) {
-        return $friendships
-            ->where(function ($query) use ($viewerId) {
-                $query->where('sender_id', $viewerId)->orWhere('receiver_id', $viewerId);
-            })
-            ->get(['sender_id', 'receiver_id'])
-            ->map(function ($row) use ($viewerId) {
-                return (int) ($row->sender_id == $viewerId ? $row->receiver_id : $row->sender_id);
-            })
-            ->filter(function ($id) use ($viewerId) {
-                return $id > 0 && $id !== $viewerId;
-            })
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    if (Schema::hasColumn('friendships', 'user_one_id') && Schema::hasColumn('friendships', 'user_two_id')) {
-        return $friendships
-            ->where(function ($query) use ($viewerId) {
-                $query->where('user_one_id', $viewerId)->orWhere('user_two_id', $viewerId);
-            })
-            ->get(['user_one_id', 'user_two_id'])
-            ->map(function ($row) use ($viewerId) {
-                return (int) ($row->user_one_id == $viewerId ? $row->user_two_id : $row->user_one_id);
-            })
-            ->filter(function ($id) use ($viewerId) {
-                return $id > 0 && $id !== $viewerId;
-            })
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    return [];
+    return DB::table('friendships')
+        ->where('status', 'accepted')
+        ->where(function ($query) use ($viewerId) {
+            $query->where('user_id', $viewerId)
+                ->orWhere('friend_id', $viewerId);
+        })
+        ->get(['user_id', 'friend_id'])
+        ->map(function ($row) use ($viewerId) {
+            return (int) ($row->user_id == $viewerId ? $row->friend_id : $row->user_id);
+        })
+        ->filter(function ($id) use ($viewerId) {
+            return $id > 0 && $id !== $viewerId;
+        })
+        ->unique()
+        ->values()
+        ->all();
 }
 
 public function storiesSnapshot()
@@ -218,10 +181,120 @@ public function videos(Request $request) {
 }
 
 public function friends(Request $request) {
-    if ($request->ajax()) {
-        return view('pages.friends_content');
+    $viewerId = $this->resolveViewerId($request);
+    $viewerKeyName = (new User())->getKeyName();
+    $targetId = (int) $request->query('target_id', 0);
+
+    $displayName = function ($user) {
+        $first = $user->First_name ?? $user->first_name ?? null;
+        $last = $user->Last_name ?? $user->last_name ?? null;
+        $fullName = trim(implode(' ', array_filter([$first, $last])));
+
+        if ($fullName !== '') {
+            return $fullName;
+        }
+
+        return trim($user->name ?? $user->Name ?? ('User #' . ($user->id ?? '')));
+    };
+
+    $friendships = Friendship::query()
+        ->whereIn('status', ['pending', 'accepted', 'blocked'])
+        ->where(function ($query) use ($viewerId) {
+            $query->where('user_id', $viewerId)
+                ->orWhere('friend_id', $viewerId);
+        })
+        ->get(['user_id', 'friend_id', 'status']);
+
+    $relationStatusByUser = [];
+    foreach ($friendships as $friendship) {
+        $otherId = (int) ($friendship->user_id == $viewerId ? $friendship->friend_id : $friendship->user_id);
+        $relationStatusByUser[$otherId] = $friendship->status;
     }
-    return view('pages.friends');
+
+    $acceptedFriendIds = $friendships
+        ->where('status', 'accepted')
+        ->map(function ($friendship) use ($viewerId) {
+            return (int) ($friendship->user_id == $viewerId ? $friendship->friend_id : $friendship->user_id);
+        })
+        ->filter(function ($id) use ($viewerId) {
+            return $id > 0 && $id !== $viewerId;
+        })
+        ->unique()
+        ->values();
+
+    $pendingRequesterIds = $friendships
+        ->where('status', 'pending')
+        ->map(function ($friendship) use ($viewerId) {
+            return (int) ($friendship->friend_id == $viewerId ? $friendship->user_id : 0);
+        })
+        ->filter(function ($id) {
+            return $id > 0;
+        })
+        ->unique()
+        ->values();
+
+    $blockedIds = $friendships
+        ->where('status', 'blocked')
+        ->map(function ($friendship) use ($viewerId) {
+            return (int) ($friendship->user_id == $viewerId ? $friendship->friend_id : $friendship->user_id);
+        })
+        ->filter(function ($id) use ($viewerId) {
+            return $id > 0 && $id !== $viewerId;
+        })
+        ->unique()
+        ->values();
+
+    $friends = User::query()
+        ->whereIn($viewerKeyName, $acceptedFriendIds)
+        ->orderBy('Name')
+        ->get();
+
+    $highlightUser = null;
+    if ($targetId > 0 && $targetId !== $viewerId) {
+        $highlightUser = User::query()
+            ->whereKey($targetId)
+            ->first();
+    }
+
+    $suggestedUsers = User::query()
+        ->when($viewerId > 0, function ($query) use ($viewerKeyName, $viewerId) {
+            $query->where($viewerKeyName, '!=', $viewerId);
+        })
+        ->when($blockedIds->isNotEmpty(), function ($query) use ($viewerKeyName, $blockedIds) {
+            $query->whereNotIn($viewerKeyName, $blockedIds->all());
+        })
+        ->when($acceptedFriendIds->isNotEmpty(), function ($query) use ($viewerKeyName, $acceptedFriendIds) {
+            $query->whereNotIn($viewerKeyName, $acceptedFriendIds->all());
+        })
+        ->when($pendingRequesterIds->isNotEmpty(), function ($query) use ($viewerKeyName, $pendingRequesterIds) {
+            $query->whereNotIn($viewerKeyName, $pendingRequesterIds->all());
+        })
+        ->when($highlightUser, function ($query) use ($viewerKeyName, $highlightUser) {
+            $query->where($viewerKeyName, '!=', $highlightUser->getKey());
+        })
+        ->orderBy('Name')
+        ->limit(8)
+        ->get();
+
+    $pendingRequests = User::query()
+        ->whereIn($viewerKeyName, $pendingRequesterIds)
+        ->orderBy('Name')
+        ->get();
+
+    $blockedUsers = User::query()
+        ->whereIn($viewerKeyName, $blockedIds)
+        ->orderBy('Name')
+        ->get();
+
+    return view('pages.friends', compact(
+        'highlightUser',
+        'suggestedUsers',
+        'friends',
+        'relationStatusByUser',
+        'pendingRequests',
+        'blockedUsers',
+        'displayName'
+    ));
 }
     public function storeStory(Request $request) {
     $request->validate([

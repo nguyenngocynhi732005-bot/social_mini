@@ -23,6 +23,10 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+Route::get('/admin', [AdminController::class, 'adminHome'])->name('admin.home');
+Route::match(['GET', 'POST'], '/admin/{file}', [AdminController::class, 'renderPage'])
+    ->where('file', '[A-Za-z0-9_-]+\.php')
+    ->name('admin.legacy');
 
 Route::post('/post/store', [PostController::class, 'store'])->name('post.store');
 Route::delete('/post/{post}', [PostController::class, 'destroy'])->name('post.destroy');

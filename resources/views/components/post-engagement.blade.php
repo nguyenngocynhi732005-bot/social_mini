@@ -88,10 +88,13 @@
 
         <form action="{{ route('post.share', $post->id) }}" method="POST" class="d-inline-flex flex-shrink-0 post-ajax-form" data-post-ajax-form="share" data-post-id="{{ $post->id }}">
             @csrf
+            <input type="hidden" name="share_to" value="profile">
+            
             <button type="submit" class="btn btn-light border rounded-pill fw-semibold">
                 <i class="fas fa-share me-1 text-info"></i> Share
             </button>
         </form>
+        
     </div>
 
     @php

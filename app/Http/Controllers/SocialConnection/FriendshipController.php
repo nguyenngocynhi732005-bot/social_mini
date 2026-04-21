@@ -9,6 +9,7 @@ use App\Models\Friendship;
 use App\Models\UserBlock;
 use Illuminate\Support\Facades\Log;
 use App\Models\Notification; 
+use Illuminate\Support\Facades\DB;
 
 class FriendshipController extends Controller
 {
@@ -32,28 +33,28 @@ class FriendshipController extends Controller
         $relations = Friendship::query()
             ->whereIn('status', ['pending', 'accepted', 'blocked'])
             ->where(function ($query) use ($myId) {
-                $query->where('user_one_id', $myId)
-                    ->orWhere('user_two_id', $myId);
+                $query->where('user_id', $myId)
+                    ->orWhere('friend_id', $myId);
             })
-            ->get(['user_one_id', 'user_two_id', 'status']);
+            ->get(['user_id', 'friend_id', 'status']);
 
         $relationStatusByUser = [];
         foreach ($relations as $relation) {
-            $otherId = (int) ($relation->user_one_id == $myId ? $relation->user_two_id : $relation->user_one_id);
+            $otherId = (int) ($relation->user_id == $myId ? $relation->friend_id : $relation->user_id);
             $relationStatusByUser[$otherId] = $relation->status;
         }
 
         $acceptedRelations = Friendship::query()
             ->where('status', 'accepted')
             ->where(function ($query) use ($myId) {
-                $query->where('user_one_id', $myId)
-                    ->orWhere('user_two_id', $myId);
+                $query->where('user_id', $myId)
+                    ->orWhere('friend_id', $myId);
             })
-            ->get(['user_one_id', 'user_two_id']);
+            ->get(['user_id', 'friend_id']);
 
         $friendIds = $acceptedRelations
             ->map(function ($relation) use ($myId) {
-                return (int) ($relation->user_one_id == $myId ? $relation->user_two_id : $relation->user_one_id);
+                return (int) ($relation->user_id == $myId ? $relation->friend_id : $relation->user_id);
             })
             ->unique()
             ->values();
@@ -74,12 +75,12 @@ class FriendshipController extends Controller
         $blockedOrFriendIds = Friendship::query()
             ->whereIn('status', ['accepted', 'blocked'])
             ->where(function ($query) use ($myId) {
-                $query->where('user_one_id', $myId)
-                    ->orWhere('user_two_id', $myId);
+                $query->where('user_id', $myId)
+                    ->orWhere('friend_id', $myId);
             })
-            ->get(['user_one_id', 'user_two_id'])
+            ->get(['user_id', 'friend_id'])
             ->map(function ($relation) use ($myId) {
-                return (int) ($relation->user_one_id == $myId ? $relation->user_two_id : $relation->user_one_id);
+                return (int) ($relation->user_id == $myId ? $relation->friend_id : $relation->user_id);
             })
             ->unique();
 
@@ -94,9 +95,9 @@ class FriendshipController extends Controller
             ->get();
 
         $pendingRequesterIds = Friendship::query()
-            ->where('user_two_id', $myId)
+            ->where('friend_id', $myId)
             ->where('status', 'pending')
-            ->pluck('user_one_id');
+            ->pluck('user_id');
 
         $pendingRequests = User::query()
             ->whereIn('ID', $pendingRequesterIds)
@@ -119,6 +120,12 @@ class FriendshipController extends Controller
         try {
             $myId = $this->getCurrentUserId();
             $targetId = (int) $request->input('target_id');
+            
+            Log::info('sendRequest called', [  //LOG 1
+                'myId' => $myId,
+                'targetId' => $targetId
+            ]);
+
 
             if ($myId <= 0 || $targetId <= 0) {
                 return response()->json(['message' => 'Không tìm thấy tài khoản hợp lệ để gửi lời mời'], 422);
@@ -134,49 +141,78 @@ class FriendshipController extends Controller
 
             // Kiểm tra xem đã có quan hệ gì chưa (kể cả người kia gửi cho mình)
             $existingFriendship = Friendship::where(function ($query) use ($myId, $targetId) {
-                $query->where('user_one_id', $myId)->where('user_two_id', $targetId);
+                $query->where('user_id', $myId)->where('friend_id', $targetId);
             })->orWhere(function ($query) use ($myId, $targetId) {
-                $query->where('user_one_id', $targetId)->where('user_two_id', $myId);
+                $query->where('user_id', $targetId)->where('friend_id', $myId);
             })->first();
 
             if ($existingFriendship && $existingFriendship->status !== 'cancelled') {
                 return response()->json(['message' => 'Đã tồn tại trạng thái bạn bè hoặc lời mời'], 400);
             }
 
-            if ($existingFriendship && $existingFriendship->status === 'cancelled') {
-                $existingFriendship->update([
-                    'user_one_id' => $myId,
-                    'user_two_id' => $targetId,
-                    'status' => 'pending',
+            $result = DB::transaction(function () use ($existingFriendship, $myId, $targetId) {
+                if ($existingFriendship && $existingFriendship->status === 'cancelled') {
+                    $existingFriendship->update([
+                        'user_id' => $myId,
+                        'friend_id' => $targetId,
+                        'status' => 'pending',
+                    ]);
+                    $friendship = $existingFriendship->fresh();
+                    $isResend = true;
+                } else {
+                    $friendship = Friendship::create([
+                        'user_id' => $myId,
+                        'friend_id' => $targetId,
+                        'status' => 'pending'
+                    ]);
+                    $isResend = false;
+                }
+
+                Log::info('Friendship ready', [
+                    'friendship_id' => $friendship->id,
+                    'is_resend' => $isResend,
+                    'status' => $friendship->status,
                 ]);
 
-                return response()->json(['message' => 'Đã gửi lại lời mời kết bạn!']);
-            }
+                Log::info('About to create notification', [
+                    'receiver_id' => $targetId,
+                    'sender_id' => $myId,
+                    'type' => 'friend_request',
+                    'friendship_id' => $friendship->id,
+                ]);
 
-            // Tạo lời mời mới
-            Friendship::create([
-                'user_one_id' => $myId,
-                'user_two_id' => $targetId,
-                'status' => 'pending'
+                $notification = Notification::create([
+                    'receiver_id' => $targetId,
+                    'sender_id'   => $myId,
+                    'type'        => 'friend_request',
+                    'is_read'     => 0
+                ]);
+
+                Log::info('Notification created', [
+                    'notification_id' => $notification->id,
+                    'receiver_id' => $targetId,
+                    'sender_id' => $myId,
+                    'type' => 'friend_request',
+                    'friendship_id' => $friendship->id,
+                ]);
+
+                return $isResend;
+            });
+
+            return response()->json([
+                'message' => $result
+                    ? 'Đã gửi lại lời mời kết bạn!'
+                    : 'Đã gửi lời mời kết bạn thành công!'
             ]);
-
-            // --- ĐÃ SỬA: KHỚP VỚI DATABASE THỰC TẾ ---
-            Notification::create([
-                'receiver_id' => $targetId, // Đổi từ user_id -> receiver_id
-                'sender_id'   => $myId,
-                'type'        => 'friend_request',
-                'is_read'     => 0
-            ]);
-            // ------------------------------------------
-
-            return response()->json(['message' => 'Đã gửi lời mời kết bạn thành công!']);
         } catch (\Throwable $exception) {
             Log::error('sendRequest failed', [
                 'error' => $exception->getMessage(),
                 'trace' => $exception->getTraceAsString(),
+                'myId' => $myId ?? null,
+                'targetId' => $targetId ?? null,
             ]);
 
-            return response()->json(['message' => 'Loi he thong khi gui loi moi ket ban'], 500);
+            return response()->json(['message' => 'Lỗi hệ thống khi gửi lời mời kết bạn'], 500);
         }
     }
 
@@ -194,11 +230,11 @@ class FriendshipController extends Controller
             ->where('status', 'pending')
             ->where(function ($query) use ($myId, $targetId) {
                 $query->where(function ($pairQuery) use ($myId, $targetId) {
-                    $pairQuery->where('user_one_id', $myId)
-                        ->where('user_two_id', $targetId);
+                    $pairQuery->where('user_id', $myId)
+                        ->where('friend_id', $targetId);
                 })->orWhere(function ($pairQuery) use ($myId, $targetId) {
-                    $pairQuery->where('user_one_id', $targetId)
-                        ->where('user_two_id', $myId);
+                    $pairQuery->where('user_id', $targetId)
+                        ->where('friend_id', $myId);
                 });
             })
             ->delete();
@@ -218,8 +254,8 @@ class FriendshipController extends Controller
         $action = $request->input('action'); // 'accept' hoặc 'decline'
 
         // Tìm lời mời người kia gửi cho mình
-        $friendship = Friendship::where('user_one_id', $requesterId)
-                                ->where('user_two_id', $myId)
+        $friendship = Friendship::where('user_id', $requesterId)
+                    ->where('friend_id', $myId)
                                 ->where('status', 'pending')
                                 ->first();
 
@@ -252,9 +288,9 @@ class FriendshipController extends Controller
         $myId = $this->getCurrentUserId();
 
         Friendship::where(function ($query) use ($myId, $targetId) {
-            $query->where('user_one_id', $myId)->where('user_two_id', $targetId);
+            $query->where('user_id', $myId)->where('friend_id', $targetId);
         })->orWhere(function ($query) use ($myId, $targetId) {
-            $query->where('user_one_id', $targetId)->where('user_two_id', $myId);
+            $query->where('user_id', $targetId)->where('friend_id', $myId);
         })->update(['status' => 'cancelled']);
 
         return response()->json(['message' => 'Đã hủy kết bạn/thu hồi lời mời.']);
@@ -274,9 +310,9 @@ class FriendshipController extends Controller
 
         Friendship::query()
             ->where(function ($query) use ($myId, $targetId) {
-                $query->where('user_one_id', $myId)->where('user_two_id', $targetId);
+                $query->where('user_id', $myId)->where('friend_id', $targetId);
             })->orWhere(function ($query) use ($myId, $targetId) {
-                $query->where('user_one_id', $targetId)->where('user_two_id', $myId);
+                $query->where('user_id', $targetId)->where('friend_id', $myId);
             })
             ->update(['status' => 'blocked']);
 
@@ -300,9 +336,9 @@ class FriendshipController extends Controller
 
         // 2. Mở khóa trạng thái trong bảng tình bạn (trả về cancelled để có thể kết bạn lại)
         Friendship::where(function ($query) use ($myId, $targetId) {
-            $query->where('user_one_id', $myId)->where('user_two_id', $targetId);
+            $query->where('user_id', $myId)->where('friend_id', $targetId);
         })->orWhere(function ($query) use ($myId, $targetId) {
-            $query->where('user_one_id', $targetId)->where('user_two_id', $myId);
+            $query->where('user_id', $targetId)->where('friend_id', $myId);
         })->update(['status' => 'cancelled']);
 
         return response()->json(['message' => 'Đã bỏ chặn thành công.']);

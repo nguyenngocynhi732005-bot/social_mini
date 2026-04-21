@@ -103,9 +103,13 @@
 
     .auth-screen-panel .flex.items-center.justify-end.mt-4 {
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-end;
         gap: 12px;
         flex-wrap: wrap;
+    }
+
+    .auth-screen-panel .flex.items-center.justify-end.mt-4 a {
+        margin-right: auto;
     }
 
     .auth-screen-panel .flex.items-center.justify-end.mt-4 .ml-3 {
