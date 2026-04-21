@@ -19,13 +19,27 @@ class User extends Authenticatable
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 
-    // The current schema uses custom timestamp columns; disable Laravel defaults.
     public $timestamps = false;
 
     protected $fillable = [
         'ID',
         'name',
         'email',
+        'first_name',
+        'last_name',
+        'phone',
+        'birth_date',
+        'gender',
+        'avatar',
+        'avatar_path',
+        'cover_image',
+        'cover_path',
+        'bio',
+        'work',
+        'education',
+        'location',
+        'hometown',
+        'relationship',
         'password',
         'First_name',
         'Last_name',
@@ -55,8 +69,11 @@ class User extends Authenticatable
 
     protected $casts = [
         'BirthDate' => 'date',
+        'birth_date' => 'date',
         'CreatedAt' => 'datetime',
         'UpdatedAt' => 'datetime',
+        'email_verified_at' => 'datetime',
+        'birth_date' => 'date',
     ];
 
     protected static function boot()
@@ -74,9 +91,116 @@ class User extends Authenticatable
         });
     }
 
+    public function getIdAttribute()
+    {
+        return $this->attributes['ID'] ?? $this->attributes['id'] ?? null;
+    }
+
     public function getAuthPassword()
     {
         return (string) ($this->Password ?? $this->password ?? '');
+    }
+
+    public function getNameAttribute()
+    {
+        if (!empty($this->attributes['name'])) {
+            return (string) $this->attributes['name'];
+        }
+
+        if (!empty($this->attributes['Name'])) {
+            return (string) $this->attributes['Name'];
+        }
+
+        $first = trim((string) ($this->attributes['First_name'] ?? $this->attributes['first_name'] ?? ''));
+        $last = trim((string) ($this->attributes['Last_name'] ?? $this->attributes['last_name'] ?? ''));
+        $combined = trim($first . ' ' . $last);
+
+        if ($combined !== '') {
+            return $combined;
+        }
+
+        $email = $this->attributes['Email'] ?? $this->attributes['email'] ?? '';
+        if ($email !== '') {
+            return (string) $email;
+        }
+
+        return 'User #' . ($this->attributes['ID'] ?? $this->attributes['id'] ?? 'unknown');
+    }
+
+    public function setNameAttribute($value)
+    {
+        $this->attributes['Name'] = trim((string) $value);
+    }
+
+    public function getEmailAttribute()
+    {
+        return (string) ($this->attributes['Email'] ?? $this->attributes['email'] ?? '');
+    }
+
+    public function setEmailAttribute($value)
+    {
+        $email = trim((string) $value);
+
+        if ($email === '' && $this->exists) {
+            return;
+        }
+
+        $this->attributes['Email'] = $email;
+        $this->attributes['email'] = $email;
+    }
+
+    public function getAvatarUrlAttribute(): string
+    {
+        if (!empty($this->avatar)) {
+            return asset('storage/' . ltrim($this->avatar, '/'));
+        }
+
+        if (!empty($this->AvatarURL)) {
+            return (string) $this->AvatarURL;
+        }
+
+        if (!empty($this->avatar_path)) {
+            return asset('storage/' . ltrim($this->avatar_path, '/'));
+        }
+
+        if (!empty($this->img)) {
+            return asset('storage/' . ltrim($this->img, '/'));
+        }
+
+        return 'https://i.pravatar.cc/160?u=' . urlencode((string) $this->id);
+    }
+
+    public function getCoverUrlAttribute(): string
+    {
+        if (!empty($this->cover_image)) {
+            return asset('storage/' . ltrim($this->cover_image, '/'));
+        }
+
+        if (!empty($this->cover_path)) {
+            return asset('storage/' . ltrim($this->cover_path, '/'));
+        }
+
+        return '';
+    }
+
+    public function getLocationAttribute($value)
+    {
+        return $value ?? $this->attributes['living_city'] ?? null;
+    }
+
+    public function setLocationAttribute($value)
+    {
+        $this->attributes['location'] = $value;
+    }
+
+    public function getRelationshipAttribute($value)
+    {
+        return $value ?? $this->attributes['relationship_status'] ?? null;
+    }
+
+    public function setRelationshipAttribute($value)
+    {
+        $this->attributes['relationship'] = $value;
     }
 
     public function conversations()
@@ -96,45 +220,31 @@ class User extends Authenticatable
         return $this->hasMany(ChatMessage::class, 'sender_id', 'ID');
     }
 
-    public function getNameAttribute()
+    public function friendsOfMine()
     {
-        if (!empty($this->attributes['name'])) {
-            return (string) $this->attributes['name'];
-        }
-
-        if (!empty($this->attributes['Name'])) {
-            return (string) $this->attributes['Name'];
-        }
-
-        $first = trim((string) ($this->attributes['First_name'] ?? ''));
-        $last = trim((string) ($this->attributes['Last_name'] ?? ''));
-        $combined = trim($first . ' ' . $last);
-
-        if ($combined !== '') {
-            return $combined;
-        }
-
-        $email = $this->attributes['Email'] ?? $this->attributes['email'] ?? '';
-        if ($email !== '') {
-            return (string) $email;
-        }
-
-        return 'User #' . ($this->attributes['ID'] ?? $this->attributes['id'] ?? 'unknown');
+        return $this->belongsToMany(self::class, 'friendships', 'user_id', 'friend_id', 'ID', 'ID')
+            ->wherePivot('status', 'accepted');
     }
 
-    public function getEmailAttribute()
+    public function friendOf()
     {
-        return (string) ($this->attributes['email'] ?? $this->attributes['Email'] ?? '');
+        return $this->belongsToMany(self::class, 'friendships', 'friend_id', 'user_id', 'ID', 'ID')
+            ->wherePivot('status', 'accepted');
     }
 
-    public function setEmailAttribute($value)
+    public function getFriendsAttribute()
     {
-        $email = trim((string) $value);
+        return $this->friendsOfMine->merge($this->friendOf);
+    }
 
-        if ($email === '' && $this->exists) {
-            return;
-        }
+    public function groups()
+    {
+        return $this->belongsToMany(SocialGroup::class, 'group_members', 'user_id', 'group_id', 'ID', 'id')
+            ->withPivot('role', 'joined_at');
+    }
 
-        $this->attributes['Email'] = $email;
+    public function blockedUsers()
+    {
+        return $this->belongsToMany(self::class, 'user_blocks', 'blocker_id', 'blocked_id', 'ID', 'ID');
     }
 }

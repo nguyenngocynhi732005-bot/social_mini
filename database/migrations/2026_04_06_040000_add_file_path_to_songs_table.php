@@ -13,9 +13,11 @@ class AddFilePathToSongsTable extends Migration
      */
     public function up()
     {
-        Schema::table('songs', function (Blueprint $table) {
-            $table->string('file_path')->nullable()->after('artist');
-        });
+        if (!Schema::hasColumn('songs', 'file_path')) {
+            Schema::table('songs', function (Blueprint $table) {
+                $table->string('file_path')->nullable()->after('artist');
+            });
+        }
     }
 
     /**
@@ -25,8 +27,10 @@ class AddFilePathToSongsTable extends Migration
      */
     public function down()
     {
-        Schema::table('songs', function (Blueprint $table) {
-            $table->dropColumn('file_path');
-        });
+        if (Schema::hasColumn('songs', 'file_path')) {
+            Schema::table('songs', function (Blueprint $table) {
+                $table->dropColumn('file_path');
+            });
+        }
     }
 }

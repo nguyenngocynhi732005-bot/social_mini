@@ -8,15 +8,15 @@ use App\Models\Story;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class MainController extends Controller
 {
-    public function index() {
+    public function index(Request $request) {
     $this->purgeExpiredStories();
 
     // 1. Lấy dữ liệu từ bảng stories, kèm thông tin người dùng (user)
@@ -25,11 +25,16 @@ class MainController extends Controller
         ->orderBy('created_at', 'desc')
         ->get();
 
-    $hotSongs = Song::query()
+    $hotSongsQuery = Song::query()
         ->where('is_hot', true)
         ->where('is_active', true)
-        ->whereNotNull('file_path')
-        ->orderBy('hot_rank')
+        ->orderBy('hot_rank');
+
+    if (Schema::hasColumn('songs', 'file_path')) {
+        $hotSongsQuery->whereNotNull('file_path');
+    }
+
+    $hotSongs = $hotSongsQuery
         ->get()
         ->unique('title')
         ->take(10)
@@ -38,7 +43,19 @@ class MainController extends Controller
     $latestStoryId = (int) optional($stories->first())->id;
     $storyCount = (int) $stories->count();
 
-    $posts = Post::query()
+    $posts = $this->getPosts($request);
+
+    // 2. Truyền biến $stories sang view newsfeed
+    // Chú ý: Tên trong compact('stories') phải khớp với tên biến $stories
+    return view('pages.newsfeed', compact('stories', 'hotSongs', 'latestStoryId', 'storyCount', 'posts'));
+}
+
+private function getPosts(Request $request)
+{
+    $viewerId = $this->resolveViewerId($request);
+    $friendIds = $this->getFriendIds($viewerId);
+
+    $query = Post::query()
         ->with(['user', 'comments.user', 'comments.replies.user', 'sharedFromPost.user'])
         ->withCount([
             'comments',
@@ -49,13 +66,118 @@ class MainController extends Controller
             'reactions as wow_count' => function ($query) { $query->where('reaction_type', 'wow'); },
             'reactions as sad_count' => function ($query) { $query->where('reaction_type', 'sad'); },
             'reactions as angry_count' => function ($query) { $query->where('reaction_type', 'angry'); },
-        ])
-        ->latest()
-        ->get();
+        ]);
 
-    // 2. Truyền biến $stories sang view newsfeed
-    // Chú ý: Tên trong compact('stories') phải khớp với tên biến $stories
-    return view('pages.newsfeed', compact('stories', 'hotSongs', 'latestStoryId', 'storyCount', 'posts'));
+    if (Schema::hasColumn('posts', 'privacy_status')) {
+        $query->where(function ($visibilityQuery) use ($viewerId, $friendIds) {
+            $visibilityQuery
+                ->whereNull('privacy_status')
+                ->orWhere('privacy_status', 'public');
+
+            if ($viewerId > 0) {
+                $visibilityQuery->orWhere(function ($friendsQuery) use ($friendIds) {
+                    $friendsQuery->where('privacy_status', 'friends');
+
+                    if (!empty($friendIds)) {
+                        $friendsQuery->whereIn('user_id', $friendIds);
+                    } else {
+                        $friendsQuery->whereRaw('1 = 0');
+                    }
+                });
+
+                $visibilityQuery->orWhere(function ($privateQuery) use ($viewerId) {
+                    $privateQuery
+                        ->where('privacy_status', 'private')
+                        ->where('user_id', $viewerId);
+                });
+            }
+        });
+    }
+
+    return $query->latest()->get();
+}
+
+private function resolveViewerId(Request $request): int
+{
+    $rawProfileId = $request->input('profile_id');
+    if ($rawProfileId !== null && $rawProfileId !== '' && is_numeric($rawProfileId)) {
+        $profileId = (int) $rawProfileId;
+        if ($profileId > 0) {
+            return $profileId;
+        }
+    }
+
+    $authUser = Auth::user();
+    if ($authUser && $authUser->getKey() !== null) {
+        return (int) $authUser->getKey();
+    }
+
+    $keyName = (new User())->getKeyName();
+    $fallbackUser = User::query()->whereNotNull($keyName)->orderBy($keyName)->first();
+
+    return $fallbackUser ? (int) $fallbackUser->getKey() : 0;
+}
+
+private function getFriendIds(int $viewerId): array
+{
+    if ($viewerId <= 0 || !Schema::hasTable('friendships')) {
+        return [];
+    }
+
+    $friendships = DB::table('friendships')->where('status', 1);
+
+    if (Schema::hasColumn('friendships', 'user_id') && Schema::hasColumn('friendships', 'friend_id')) {
+        return $friendships
+            ->where(function ($query) use ($viewerId) {
+                $query->where('user_id', $viewerId)->orWhere('friend_id', $viewerId);
+            })
+            ->get(['user_id', 'friend_id'])
+            ->map(function ($row) use ($viewerId) {
+                return (int) ($row->user_id == $viewerId ? $row->friend_id : $row->user_id);
+            })
+            ->filter(function ($id) use ($viewerId) {
+                return $id > 0 && $id !== $viewerId;
+            })
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    if (Schema::hasColumn('friendships', 'sender_id') && Schema::hasColumn('friendships', 'receiver_id')) {
+        return $friendships
+            ->where(function ($query) use ($viewerId) {
+                $query->where('sender_id', $viewerId)->orWhere('receiver_id', $viewerId);
+            })
+            ->get(['sender_id', 'receiver_id'])
+            ->map(function ($row) use ($viewerId) {
+                return (int) ($row->sender_id == $viewerId ? $row->receiver_id : $row->sender_id);
+            })
+            ->filter(function ($id) use ($viewerId) {
+                return $id > 0 && $id !== $viewerId;
+            })
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    if (Schema::hasColumn('friendships', 'user_one_id') && Schema::hasColumn('friendships', 'user_two_id')) {
+        return $friendships
+            ->where(function ($query) use ($viewerId) {
+                $query->where('user_one_id', $viewerId)->orWhere('user_two_id', $viewerId);
+            })
+            ->get(['user_one_id', 'user_two_id'])
+            ->map(function ($row) use ($viewerId) {
+                return (int) ($row->user_one_id == $viewerId ? $row->user_two_id : $row->user_one_id);
+            })
+            ->filter(function ($id) use ($viewerId) {
+                return $id > 0 && $id !== $viewerId;
+            })
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    return [];
 }
 
 public function storiesSnapshot()
@@ -110,19 +232,8 @@ public function friends(Request $request) {
         'image_scale' => 'nullable|numeric|min:0.5|max:2',
     ]);
 
-    // Không yêu cầu đăng nhập: luôn resolve 1 user hợp lệ để tránh user_id null.
-    $storyUser = User::query()->select('id')->first();
-    if (!$storyUser) {
-        $storyUser = User::query()->firstOrCreate(
-            ['email' => 'story_uploader@socialmini.local'],
-            [
-                'name' => 'Story Uploader',
-                'password' => Hash::make(Str::random(24)),
-            ]
-        );
-    }
-
-    $storyUserId = (int) ($storyUser->id ?? 0);
+    $storyUser = $this->resolveStoryUser($request);
+    $storyUserId = (int) ($storyUser ? $storyUser->getKey() : 0);
     if ($storyUserId <= 0) {
         return back()->withErrors(['story' => 'Khong tim thay nguoi dung de dang story.']);
     }
@@ -190,5 +301,25 @@ private function purgeExpiredStories(): void
     }
 
     Story::query()->whereIn('id', $expiredStories->pluck('id'))->delete();
+}
+
+private function resolveStoryUser(Request $request): ?User
+{
+    $rawProfileId = $request->input('profile_id');
+    if ($rawProfileId !== null && $rawProfileId !== '' && is_numeric($rawProfileId)) {
+        $profileId = (int) $rawProfileId;
+        $byProfile = User::query()->whereKey($profileId)->first();
+        if ($byProfile) {
+            return $byProfile;
+        }
+    }
+
+    $authUser = Auth::user();
+    if ($authUser && $authUser->getKey() !== null) {
+        return $authUser;
+    }
+
+    $keyName = (new User())->getKeyName();
+    return User::query()->whereNotNull($keyName)->orderBy($keyName)->first();
 }
 }

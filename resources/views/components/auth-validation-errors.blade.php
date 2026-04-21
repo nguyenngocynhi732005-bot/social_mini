@@ -1,4 +1,8 @@
-@props(['errors'])
+@props(['errors' => null])
+
+@php
+    $errors = $errors ?: session('errors', new \Illuminate\Support\ViewErrorBag());
+@endphp
 
 @if ($errors->any())
     <div {{ $attributes }}>

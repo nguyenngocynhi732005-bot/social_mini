@@ -7,7 +7,7 @@
             </a>
         </x-slot>
 
-        <x-auth-validation-errors class="mb-4" :errors="$errors" />
+        <x-auth-validation-errors class="mb-4" />
 
         <form method="POST" action="{{ route('register') }}">
             @csrf

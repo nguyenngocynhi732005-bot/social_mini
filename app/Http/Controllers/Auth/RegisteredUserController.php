@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 
@@ -89,9 +90,21 @@ class RegisteredUserController extends Controller
             $payload['Status'] = 1;
         }
 
-        $user = User::create($payload);
+        DB::table('users')->insert($payload);
 
-        event(new Registered($user));
+        $keyName = (new User())->getKeyName();
+        $user = User::query()
+            ->where($emailColumn, (string) $request->input('Email'))
+            ->orderByDesc($keyName)
+            ->first();
+
+        if (!$user) {
+            $user = User::query()->orderByDesc($keyName)->first();
+        }
+
+        if ($user) {
+            event(new Registered($user));
+        }
 
         return redirect()->route('login')->with('status', 'Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.');
     }
