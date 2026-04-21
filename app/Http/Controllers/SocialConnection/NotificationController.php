@@ -22,12 +22,17 @@ class NotificationController extends Controller
     public function index(Request $request)
     {
         $userId = $this->getCurrentUserId();
+        $limit = (int) $request->input('limit', 8);
+        if ($limit <= 0) {
+            $limit = 8;
+        }
+        $limit = min($limit, 20);
         
         // ĐỔI user_id THÀNH receiver_id
         $notifications = Notification::with('sender')
             ->where('receiver_id', $userId)
             ->latest()
-        //    ->limit(20)
+            ->limit($limit)
             ->get();
 
         $unreadCount = Notification::where('receiver_id', $userId)
@@ -72,35 +77,36 @@ class NotificationController extends Controller
                 }
 
                 // Tự động tạo câu thông báo dựa vào cột 'type'
-                $message ='';
+                $message = '';
                 $link = '#';
 
                 if ($noti->type === 'friend_request') {
-                    if ($message === '') {
-                        $message = $senderName . ' đã gửi cho bạn một lời mời kết bạn.';
-                    }
+                    $message = $senderName . ' đã gửi cho bạn một lời mời kết bạn.';
                     if ($link === '#') {
                         $link = '/friends';
                     }
                 } elseif ($noti->type === 'friend_accept') {
-                    if ($message === '') {
-                        $message = $senderName . ' đã chấp nhận lời mời kết bạn.';
-                    }
+                    $message = $senderName . ' đã chấp nhận lời mời kết bạn.';
                     if ($link === '#') {
                         $link = '/friends';
                     }
                 } elseif ($noti->type === 'like_post') {
-                    if ($message === '') {
-                        $message = $senderName . ' đã thích bài viết của bạn.';
+                    $message = $senderName . ' đã thích bài viết của bạn.';
+                    if ($link === '#') {
+                        $link = '/newsfeed';
                     }
                 } elseif ($noti->type === 'comment_post') {
-                    if ($message === '') {
-                        $message = $senderName . ' đã bình luận về bài viết của bạn.';
+                    $message = $senderName . ' đã bình luận về bài viết của bạn.';
+                    if ($link === '#') {
+                        $link = '/newsfeed';
+                    }
+                } elseif ($noti->type === 'share_post') {
+                    $message = $senderName . ' đã chia sẻ bài viết của bạn.';
+                    if ($link === '#') {
+                        $link = '/newsfeed';
                     }
                 } elseif ($noti->type === 'new_post' || $noti->type === 'group_post') {
-                    if ($message === '') {
-                        $message = $senderName . ' đã đăng một bài viết mới trong nhóm.';
-                    }
+                    $message = $senderName . ' đã đăng một bài viết mới trong nhóm.';
                     if ($link === '#') {
                         $link = '/social/groups';
                     }
@@ -112,10 +118,12 @@ class NotificationController extends Controller
 
                 return [
                     'id' => $noti->id,
+                    'type' => $noti->type,
                     'message' => $message,
                     'link' => $link,
                     'is_read' => (bool) $noti->is_read,
                     'sender_name' => $senderName,
+                    'sender_avatar_url' => optional($sender)->avatar_url,
                     'time' => optional($noti->created_at)->diffForHumans() ?? 'Vừa xong',
                 ];
             })->values(),

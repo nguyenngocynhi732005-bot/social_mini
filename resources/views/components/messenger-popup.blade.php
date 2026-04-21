@@ -5,9 +5,19 @@ $popupSenderId = (int) (\App\Models\User::query()->orderBy('ID')->value('ID') ??
 }
 
 $popupSenderId = $popupSenderId ?: 0;
-$popupSenderName = auth()->user()->name ?? null;
+$popupUser = auth()->user();
+$popupSenderName = $popupUser ? $popupUser->name : null;
 if (!$popupSenderName && $popupSenderId) {
 $popupSenderName = (string) (\App\Models\User::query()->where('ID', $popupSenderId)->value('name') ?? ('User ' . $popupSenderId));
+}
+
+$popupSenderAvatarUrl = $popupUser ? $popupUser->avatar_url : null;
+if (!$popupSenderAvatarUrl && $popupSenderId) {
+$popupSenderAvatarUrl = (string) (\App\Models\User::query()->where('ID', $popupSenderId)->value('avatar_url') ?? '');
+}
+
+if (!$popupSenderAvatarUrl) {
+$popupSenderAvatarUrl = 'https://ui-avatars.com/api/?name=' . urlencode($popupSenderName ?: 'User') . '&background=eceef2&color=111827&size=96';
 }
 
 $popupSenderName = trim((string) ($popupSenderName ?: 'User'));
@@ -34,7 +44,8 @@ $popupSenderName = trim((string) ($popupSenderName ?: 'User'));
 
     <div class="messenger-popup-panel shadow-lg" data-messenger-panel hidden>
         <div class="messenger-popup-head">
-            <div>
+            <div class="messenger-popup-head-main">
+                <img class="messenger-popup-current-avatar" src="{{ $popupSenderAvatarUrl }}" data-current-user-avatar="1" alt="Current user avatar">
                 <div class="messenger-popup-title" data-popup-title>Đoạn chat</div>
             </div>
             <div class="messenger-popup-head-actions">
@@ -230,6 +241,22 @@ $popupSenderName = trim((string) ($popupSenderName ?: 'User'));
         align-items: flex-start;
         justify-content: space-between;
         padding: 16px 16px 10px;
+    }
+
+    .messenger-popup-head-main {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .messenger-popup-current-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex: 0 0 auto;
+        border: 1px solid #e4e6eb;
     }
 
     .messenger-popup-head-actions {
@@ -956,6 +983,55 @@ $popupSenderName = trim((string) ($popupSenderName ?: 'User'));
         const senderId = root.dataset.senderId || '0';
         const senderName = String(root.dataset.senderName || '').trim() || ('User ' + senderId);
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const currentUserAvatarElements = () => Array.from(document.querySelectorAll('img[data-current-user-avatar="1"]'));
+
+        function updateCurrentUserAvatar(avatarUrl) {
+            if (!avatarUrl) {
+                return;
+            }
+
+            currentUserAvatarElements().forEach(function (img) {
+                img.src = avatarUrl;
+            });
+        }
+
+        function readAvatarPayload(rawValue) {
+            if (!rawValue) {
+                return '';
+            }
+
+            try {
+                var parsed = JSON.parse(rawValue);
+                return parsed && parsed.avatarUrl ? parsed.avatarUrl : '';
+            } catch (error) {
+                return '';
+            }
+        }
+
+        window.addEventListener('social:avatar-updated', function (event) {
+            updateCurrentUserAvatar(event && event.detail ? event.detail.avatarUrl : '');
+        });
+
+        window.addEventListener('storage', function (event) {
+            if (!event || event.key !== 'social:avatar-updated') {
+                return;
+            }
+
+            updateCurrentUserAvatar(readAvatarPayload(event.newValue));
+        });
+
+        if ('BroadcastChannel' in window) {
+            var avatarChannel = new BroadcastChannel('social-avatar');
+            avatarChannel.addEventListener('message', function (event) {
+                if (event && event.data && event.data.type === 'avatar-updated') {
+                    updateCurrentUserAvatar(event.data.avatarUrl || '');
+                }
+            });
+
+            window.addEventListener('beforeunload', function () {
+                avatarChannel.close();
+            });
+        }
 
         let conversations = [];
         let loadingConversations = false;

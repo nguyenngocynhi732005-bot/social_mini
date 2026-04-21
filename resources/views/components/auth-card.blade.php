@@ -105,8 +105,10 @@
         position: relative;
         z-index: 1;
         width: min(430px, calc(100vw - 28px));
+        max-width: 100%;
         border-radius: 32px;
         padding: 24px;
+        box-sizing: border-box;
         background: rgba(255, 255, 255, 0.18);
         border: 1px solid rgba(255, 255, 255, 0.32);
         box-shadow: 0 30px 80px rgba(255, 157, 196, 0.18);
@@ -139,6 +141,7 @@
     .auth-screen-panel {
         border-radius: 30px;
         padding: 26px 24px 22px;
+        box-sizing: border-box;
         background: rgba(255, 255, 255, 0.22);
         border: 1px solid rgba(255, 255, 255, 0.34);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
@@ -156,14 +159,39 @@
 
     .auth-screen-panel input[type='email'],
     .auth-screen-panel input[type='password'],
-    .auth-screen-panel input[type='text'] {
+    .auth-screen-panel input[type='text'],
+    .auth-screen-panel input[type='date'],
+    .auth-screen-panel select {
+        display: block;
         width: 100%;
+        max-width: 100%;
+        min-height: 54px;
         border-radius: 999px;
         border: 0;
         background: rgba(255, 255, 255, 0.96);
         color: #1f2937;
         padding: 15px 18px;
+        box-sizing: border-box;
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.78), 0 10px 24px rgba(16, 24, 40, 0.08);
+    }
+
+    .auth-screen-panel select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image: linear-gradient(45deg, transparent 50%, #6b7280 50%), linear-gradient(135deg, #6b7280 50%, transparent 50%);
+        background-position: calc(100% - 24px) calc(50% - 2px), calc(100% - 18px) calc(50% - 2px);
+        background-size: 6px 6px, 6px 6px;
+        background-repeat: no-repeat;
+        padding-right: 44px;
+    }
+
+    .auth-screen-panel .password-toggle-wrap {
+        position: relative;
+    }
+
+    .auth-screen-panel .password-toggle-wrap input[type='password'] {
+        padding-right: 46px;
     }
 
     .auth-screen-panel input:focus {
@@ -201,8 +229,9 @@
         padding: 14px 24px;
         background: linear-gradient(90deg, #f7df64 0%, #ff9aa7 45%, #d0a5ff 100%);
         color: #203a89;
+        font-family: Tahoma, sans-serif;
         font-size: 13px;
-        font-weight: 900;
+        font-weight: 700;
         letter-spacing: 0.12em;
         box-shadow: 0 14px 30px rgba(255, 154, 167, 0.34);
     }

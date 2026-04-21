@@ -11,8 +11,8 @@ class Friendship extends Model
 
     protected $table = 'friendships';
     protected $fillable = [
-        'user_one_id',
-        'user_two_id',
+        'user_id',
+        'friend_id',
         'status',
         'action_user_id',
     ];
@@ -25,7 +25,7 @@ class Friendship extends Model
      */
     public function userOne()
     {
-        return $this->belongsTo(User::class, 'user_one_id', 'ID');
+        return $this->belongsTo(User::class, 'user_id', 'ID');
     }
 
     /**
@@ -33,7 +33,7 @@ class Friendship extends Model
      */
     public function userTwo()
     {
-        return $this->belongsTo(User::class, 'user_two_id', 'ID');
+        return $this->belongsTo(User::class, 'friend_id', 'ID');
     }
 
     /**
@@ -49,7 +49,7 @@ class Friendship extends Model
      */
     public function getOtherUser($userId)
     {
-        if ($this->user_one_id == $userId) {
+        if ($this->user_id == $userId) {
             return $this->userTwo;
         }
         return $this->userOne;

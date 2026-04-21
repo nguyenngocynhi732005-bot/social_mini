@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Models\PostComment;
 use App\Models\PostReaction;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class PostInteractionController extends Controller
@@ -44,6 +46,8 @@ class PostInteractionController extends Controller
             );
             $message = 'Đã cập nhật cảm xúc.';
             $activeReaction = $reactionType;
+
+            $this->createPostNotification($post, $user->id, 'like_post');
         }
 
         if ($request->expectsJson() || $request->ajax()) {
@@ -74,6 +78,8 @@ class PostInteractionController extends Controller
             'content' => $validated['content'],
             'parent_id' => $validated['parent_id'] ?? null,
         ]);
+
+        $this->createPostNotification($post, $user->id, 'comment_post');
 
         if ($request->expectsJson() || $request->ajax()) {
             $freshComment = PostComment::query()
@@ -162,6 +168,8 @@ class PostInteractionController extends Controller
             'created_at' => now(),
         ]);
 
+        $this->createPostNotification($post, $user->id, 'share_post');
+
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'ok' => true,
@@ -233,18 +241,33 @@ class PostInteractionController extends Controller
 
     private function resolveInteractionUser(): User
     {
-        $user = User::query()->select('id')->first();
-
-        if ($user) {
-            return $user;
+        if (auth()->check()) {
+            $authenticatedUser = auth()->user();
+            if ($authenticatedUser && $authenticatedUser->getKey() !== null) {
+                return $authenticatedUser;
+            }
         }
 
-        return User::query()->firstOrCreate(
-            ['email' => 'interaction_uploader@socialmini.local'],
-            [
-                'name' => 'Interaction User',
-                'password' => Hash::make(Str::random(24)),
-            ]
-        );
+        abort(401, 'Bạn cần đăng nhập để thực hiện thao tác này.');
+    }
+
+    private function createPostNotification(Post $post, int $senderId, string $type): void
+    {
+        if (!Schema::hasTable('notifications')) {
+            return;
+        }
+
+        $receiverId = (int) $post->user_id;
+        if ($receiverId <= 0 || $receiverId === $senderId) {
+            return;
+        }
+
+        Notification::query()->create([
+            'receiver_id' => $receiverId,
+            'sender_id' => $senderId,
+            'type' => $type,
+            'is_read' => false,
+            'post_id' => (int) $post->id,
+        ]);
     }
 }

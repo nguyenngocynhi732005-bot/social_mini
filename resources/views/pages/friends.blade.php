@@ -14,6 +14,19 @@
         return trim($user->name ?? $user->Name ?? ('User #' . ($user->id ?? '')));
     };
 
+    $avatarUrl = function ($user) use ($displayName) {
+        return $user->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($displayName($user)) . '&background=random';
+    };
+
+    $resolveUserId = function ($user) {
+        return (int) ($user->id ?? $user->ID ?? $user->user_id ?? 0);
+    };
+
+    $profileUrl = function ($user) use ($resolveUserId) {
+        $userId = $resolveUserId($user);
+        return $userId > 0 ? route('profile.show', ['id' => $userId]) : '#';
+    };
+
     $relationStatusByUser = $relationStatusByUser ?? [];
     $isPending = function ($userId) use ($relationStatusByUser) {
         return ($relationStatusByUser[$userId] ?? null) === 'pending';
@@ -161,7 +174,9 @@
                         @foreach($pendingRequests as $requester)
                             <div class="request-card p-3 request-item">
                                 <div class="d-flex align-items-center gap-3">
-                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($displayName($requester)) }}&background=random" alt="{{ $displayName($requester) }}" width="56" height="56" class="avatar-circle">
+                                    <a href="{{ $profileUrl($requester) }}" aria-label="Xem trang cá nhân {{ $displayName($requester) }}">
+                                        <img src="{{ $avatarUrl($requester) }}" alt="{{ $displayName($requester) }}" width="56" height="56" class="avatar-circle">
+                                    </a>
                                     <div class="min-w-0 flex-grow-1">
                                         <div class="fw-bold text-dark text-truncate">{{ $displayName($requester) }}</div>
                                         <div class="subtle-text small">Chờ phản hồi</div>
@@ -200,9 +215,14 @@
                     <div class="custom-scrollbar" style="max-height: 450px; overflow-y: auto; padding-right: 8px; padding-bottom: 120px;">
                         <div class="d-grid gap-2">
                             @foreach($friends as $friend)
+                                @php
+                                    $friendId = $resolveUserId($friend);
+                                @endphp
                                 <div class="suggestion-card p-2 d-flex align-items-center justify-content-between friend-item transition-all" style="border-radius: 12px;">
                                     <div class="d-flex align-items-center gap-3 min-w-0">
-                                        <img src="https://ui-avatars.com/api/?name={{ urlencode($displayName($friend)) }}&background=random" alt="{{ $displayName($friend) }}" width="48" height="48" class="avatar-circle shadow-sm">
+                                        <a href="{{ $profileUrl($friend) }}" aria-label="Xem trang cá nhân {{ $displayName($friend) }}">
+                                            <img src="{{ $avatarUrl($friend) }}" alt="{{ $displayName($friend) }}" width="48" height="48" class="avatar-circle shadow-sm">
+                                        </a>
                                         <div class="min-w-0">
                                             <div class="fw-bold text-dark text-truncate" style="font-size: 0.95rem;">{{ $displayName($friend) }}</div>
                                             <div class="subtle-text text-truncate" style="font-size: 0.8rem;">Bạn bè</div>
@@ -210,21 +230,26 @@
                                     </div>
                                     
                                     <div class="d-flex align-items-center gap-2">
-                                        <button class="btn btn-light rounded-circle text-primary" style="width: 36px; height: 36px; padding: 0;" title="Nhắn tin">
+                                        <a
+                                            class="btn btn-light rounded-circle text-primary d-inline-flex align-items-center justify-content-center"
+                                            href="{{ route('chat.test', ['peer_id' => $friendId]) }}"
+                                            style="width: 36px; height: 36px; padding: 0;"
+                                            title="Nhắn tin"
+                                            aria-label="Nhắn tin với {{ $displayName($friend) }}">
                                             <i class="fab fa-facebook-messenger"></i>
-                                        </button>
+                                        </a>
                                         <div class="dropdown">
                                             <button class="btn btn-light rounded-circle" type="button" data-bs-toggle="dropdown" data-bs-boundary="window" aria-expanded="false" style="width: 36px; height: 36px; padding: 0;">
                                                 <i class="fas fa-ellipsis-h text-muted"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="border-radius: 12px;">
                                                 <li>
-                                                    <a class="dropdown-item text-danger unfriend-btn py-2" href="#" data-id="{{ $friend->id }}">
+                                                    <a class="dropdown-item text-danger unfriend-btn py-2" href="#" data-id="{{ $friendId }}">
                                                         <i class="fas fa-user-times me-2 width-15 text-center"></i> Hủy kết bạn
                                                     </a>
                                                 </li>
                                                 <li>
-                                                    <a class="dropdown-item block-btn py-2" href="#" data-id="{{ $friend->id }}">
+                                                    <a class="dropdown-item block-btn py-2" href="#" data-id="{{ $friendId }}">
                                                         <i class="fas fa-ban me-2 text-muted width-15 text-center"></i> Chặn người dùng
                                                     </a>
                                                 </li>
@@ -252,7 +277,9 @@
         <div class="friends-panel p-3 p-md-4 mb-3">
             <div class="friends-panel-header mb-0">
                 <div class="d-flex align-items-center gap-3 min-w-0">
-                    <img src="https://ui-avatars.com/api/?name={{ urlencode($displayName($highlightUser)) }}&background=random" alt="{{ $displayName($highlightUser) }}" width="56" height="56" class="avatar-circle">
+                    <a href="{{ $profileUrl($highlightUser) }}" aria-label="Xem trang cá nhân {{ $displayName($highlightUser) }}">
+                        <img src="{{ $avatarUrl($highlightUser) }}" alt="{{ $displayName($highlightUser) }}" width="56" height="56" class="avatar-circle">
+                    </a>
                     <div class="min-w-0">
                         <div class="fw-bold text-dark text-truncate">{{ $displayName($highlightUser) }}</div>
                         <div class="subtle-text small text-truncate">{{ $isPending($highlightUser->id) ? 'Đã gửi lời mời' : 'Người bạn có thể biết' }}</div>
@@ -282,7 +309,9 @@
                     <div class="col-12 col-md-6">
                         <div class="suggestion-card p-3 h-100 d-flex align-items-center justify-content-between gap-3">
                             <div class="d-flex align-items-center gap-3 min-w-0">
-                                <img src="https://ui-avatars.com/api/?name={{ urlencode($displayName($user)) }}&background=random" alt="{{ $displayName($user) }}" width="56" height="56" class="avatar-circle">
+                                <a href="{{ $profileUrl($user) }}" aria-label="Xem trang cá nhân {{ $displayName($user) }}">
+                                    <img src="{{ $avatarUrl($user) }}" alt="{{ $displayName($user) }}" width="56" height="56" class="avatar-circle">
+                                </a>
                                 <div class="min-w-0">
                                     <div class="fw-semibold text-dark text-truncate">{{ $displayName($user) }}</div>
                                     <div class="subtle-text small text-truncate">{{ $isPending($user->id) ? 'Đã gửi lời mời' : 'Người bạn có thể biết' }}</div>
@@ -316,7 +345,9 @@
                         <div class="col-12 col-md-6">
                             <div class="suggestion-card p-2 d-flex align-items-center justify-content-between blocked-item transition-all" style="border-radius: 12px; background: #fffcfc; border: 1px solid #ffeeba;">
                                 <div class="d-flex align-items-center gap-3 min-w-0">
-                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($displayName($blocked)) }}&background=random" width="48" height="48" class="avatar-circle shadow-sm">
+                                    <a href="{{ $profileUrl($blocked) }}" aria-label="Xem trang cá nhân {{ $displayName($blocked) }}">
+                                        <img src="{{ $avatarUrl($blocked) }}" alt="{{ $displayName($blocked) }}" width="48" height="48" class="avatar-circle shadow-sm">
+                                    </a>
                                     <div class="min-w-0">
                                         <div class="fw-bold text-dark text-truncate" style="font-size: 0.95rem;">{{ $displayName($blocked) }}</div>
                                         <div class="subtle-text text-truncate text-danger" style="font-size: 0.8rem;">Đã chặn</div>
@@ -353,6 +384,37 @@ document.addEventListener('DOMContentLoaded', function () {
     const respondUrl = pageData ? pageData.dataset.respondUrl : '';
     const requestUrl = pageData ? pageData.dataset.requestUrl : '';
     const cancelUrl = pageData ? pageData.dataset.cancelUrl : '';
+    const friendshipChannel = 'BroadcastChannel' in window ? new BroadcastChannel('social-friendships') : null;
+
+    const notifyFriendshipUpdated = (action, targetId) => {
+        const payload = JSON.stringify({
+            action: action,
+            targetId: targetId,
+            timestamp: Date.now()
+        });
+
+        window.dispatchEvent(new CustomEvent('social:friendship-updated', {
+            detail: {
+                action: action,
+                targetId: targetId
+            }
+        }));
+
+        if (friendshipChannel) {
+            friendshipChannel.postMessage({
+                type: 'friendship-updated',
+                action: action,
+                targetId: targetId,
+                timestamp: Date.now()
+            });
+        }
+
+        try {
+            localStorage.setItem('social:friendship-updated', payload);
+        } catch (error) {
+            // Ignore storage failures; same-tab listeners still work.
+        }
+    };
 
     const requestJson = async (url, method, body, fallbackMessage) => {
         const response = await fetch(url, {
@@ -414,6 +476,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     await requestJson(blockUrl, 'POST', { target_id: targetId }, 'Không thể chặn.');
                 }
+
+                notifyFriendshipUpdated(isUnfriend ? 'unfriended' : 'blocked', targetId);
                 
                 friendItem.style.transition = "opacity 0.3s";
                 friendItem.style.opacity = 0;
@@ -440,6 +504,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     action: action
                 }, 'Không thể phản hồi lời mời.');
 
+                if (action === 'accept') {
+                    notifyFriendshipUpdated('accepted', requesterId);
+                }
+
                 if (requestItem) {
                     requestItem.remove();
                 }
@@ -465,6 +533,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             try {
                 await requestJson(unblockUrlTemplate.replace('__USER__', targetId), 'DELETE', null, 'Không thể bỏ chặn.');
+
+                notifyFriendshipUpdated('unblocked', targetId);
                 
                 blockedItem.style.transition = "opacity 0.3s, transform 0.3s";
                 blockedItem.style.opacity = 0;

@@ -436,6 +436,7 @@
     data-profile-story-items='@json($profileStoryItems ?? [])'
     data-update-account-url="{{ route('profile.personalization.update-account') }}"
     data-update-intro-url="{{ route('profile.personalization.update-intro') }}"
+    data-refresh-on-friendship-change="{{ !empty($isOwnProfile) ? '1' : '0' }}"
     hidden></div>
 <div class="pp-profile-shell" data-profile-id="{{ (int) ($profileId ?? optional($currentUser)->id ?? 0) }}">
     <div class="pp-bento-card overflow-hidden">
@@ -1415,6 +1416,7 @@
                         ? 'Ban be'
                         : ($postPrivacyStatus === 'private' ? 'Chi minh toi' : 'Cong khai');
                     $postUser = optional($post->user);
+                    $postOwnerId = (int) ($postUser->id ?? $postUser->ID ?? $post->user_id ?? 0);
                     $fullName = trim((string) ($postUser->First_name ?? '') . ' ' . (string) ($postUser->Last_name ?? ''));
                     $displayName = $fullName !== ''
                         ? $fullName
@@ -1431,7 +1433,7 @@
 
                 <div class="pp-bento-card p-3 mb-3 pp-post-card">
                     <div class="d-flex align-items-start mb-2">
-                        <img src="https://i.pravatar.cc/45?u={{ $post->user_id }}" class="rounded-circle me-2" width="42" height="42" alt="post-avatar">
+                        <img src="{{ $postUser->avatar_url ?: ('https://i.pravatar.cc/45?u=' . ($post->user_id ?? 'post')) }}" class="rounded-circle me-2" width="42" height="42" alt="post-avatar" @if($isOwnProfile && $postOwnerId === (int) ($profileId ?? 0)) data-current-user-avatar="1" @endif>
                         <div>
                             <div class="fw-bold">{{ $displayName }}</div>
                             <small class="text-muted d-inline-flex align-items-center gap-2">
@@ -1609,6 +1611,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var profilePageData = document.getElementById('profile-page-data');
     var currentAvatarUrl = profilePageData ? (profilePageData.dataset.currentAvatarUrl || '') : '';
     var currentCoverUrl = profilePageData ? (profilePageData.dataset.currentCoverUrl || '') : '';
+    var refreshOnFriendshipChange = profilePageData ? profilePageData.dataset.refreshOnFriendshipChange === '1' : false;
     var profileStoryItems = [];
 
     if (profilePageData && profilePageData.dataset.profileStoryItems) {
@@ -1755,6 +1758,87 @@ document.addEventListener('DOMContentLoaded', function () {
         return String(url).split('?')[0];
     }
 
+    function notifyAvatarUpdated(avatarUrl) {
+        if (!avatarUrl) {
+            return;
+        }
+
+        var payload = JSON.stringify({
+            avatarUrl: avatarUrl,
+            timestamp: Date.now()
+        });
+
+        window.dispatchEvent(new CustomEvent('social:avatar-updated', {
+            detail: {
+                avatarUrl: avatarUrl
+            }
+        }));
+
+        try {
+            localStorage.setItem('social:avatar-updated', payload);
+        } catch (error) {
+            // Ignore storage errors and rely on same-tab updates.
+        }
+
+        if (window.socialAvatarBroadcastChannel) {
+            window.socialAvatarBroadcastChannel.postMessage({
+                type: 'avatar-updated',
+                avatarUrl: avatarUrl,
+                timestamp: Date.now()
+            });
+        }
+    }
+
+    if ('BroadcastChannel' in window && !window.socialAvatarBroadcastChannel) {
+        window.socialAvatarBroadcastChannel = new BroadcastChannel('social-avatar');
+        window.addEventListener('beforeunload', function () {
+            if (window.socialAvatarBroadcastChannel) {
+                window.socialAvatarBroadcastChannel.close();
+                window.socialAvatarBroadcastChannel = null;
+            }
+        });
+    }
+
+    function reloadFriendshipState() {
+        if (!refreshOnFriendshipChange) {
+            return;
+        }
+
+        window.location.reload();
+    }
+
+    function handleFriendshipUpdateEvent() {
+        reloadFriendshipState();
+    }
+
+    window.addEventListener('social:friendship-updated', handleFriendshipUpdateEvent);
+
+    window.addEventListener('storage', function (event) {
+        if (!refreshOnFriendshipChange) {
+            return;
+        }
+
+        if (event && event.key === 'social:friendship-updated' && event.newValue) {
+            reloadFriendshipState();
+        }
+    });
+
+    if ('BroadcastChannel' in window) {
+        var friendshipChannel = new BroadcastChannel('social-friendships');
+        friendshipChannel.addEventListener('message', function (event) {
+            if (!refreshOnFriendshipChange) {
+                return;
+            }
+
+            if (event && event.data && event.data.type === 'friendship-updated') {
+                reloadFriendshipState();
+            }
+        });
+        window.addEventListener('beforeunload', function () {
+            friendshipChannel.close();
+        });
+    }
+
     function applyCoverImage(coverUrl) {
         if (!coverUrl) {
             return;
@@ -1793,6 +1877,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         currentAvatarUrl = normalizedNew;
+        notifyAvatarUpdated(bustedAvatarUrl);
     }
 
     function uploadProfileImages(avatarFile, coverFile) {
@@ -1820,8 +1905,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return axios.post('/profile/update-images', formData, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': csrfToken ? csrfToken.getAttribute('content') : '',
-                'Content-Type': 'multipart/form-data'
+                'X-CSRF-TOKEN': csrfToken ? csrfToken.getAttribute('content') : ''
             }
         }).then(function (response) {
             var payload = response && response.data ? response.data : {};
@@ -1839,6 +1923,19 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             return payload;
+        }).catch(function (error) {
+            var serverMessage = error
+                && error.response
+                && error.response.data
+                && error.response.data.message
+                ? error.response.data.message
+                : '';
+
+            if (serverMessage) {
+                throw new Error(serverMessage);
+            }
+
+            throw error;
         });
     }
 

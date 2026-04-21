@@ -1,6 +1,10 @@
 ﻿@extends('layouts.app')
 
 @section('content')
+@php
+    $currentUserId = (int) (optional(auth()->user())->id ?? optional(auth()->user())->ID ?? auth()->id() ?? 0);
+    $currentUserAvatarUrl = optional(auth()->user())->avatar_url ?: 'https://i.pravatar.cc/45?u=guest';
+@endphp
 <div id="storiesRealtimeMeta"
     data-latest-story-id="{{ $latestStoryId ?? 0 }}"
     data-story-count="{{ $storyCount ?? 0 }}"
@@ -14,7 +18,9 @@
     <div class="card mb-3 shadow-sm">
         <div class="card-body">
             <div class="d-flex align-items-center gap-2 mb-2">
-                <img src="https://i.pravatar.cc/45?u=nhi" class="rounded-circle">
+                <a href="{{ $currentUserId > 0 ? route('profile.show', ['id' => $currentUserId]) : route('profile.personalization') }}" aria-label="Xem trang cá nhân của bạn">
+                    <img src="{{ $currentUserAvatarUrl }}" data-current-user-avatar="1" class="rounded-circle" width="45" height="45" alt="current-user-avatar">
+                </a>
                 <button
                     id="openPostComposerBtn"
                     type="button"
@@ -41,7 +47,9 @@
                 <div class="modal-body">
                     <!-- Thông tin User -->
                     <div class="d-flex align-items-center mb-3">
-                        <img src="https://i.pravatar.cc/45?u=nhi" class="rounded-circle me-2 border" width="45" height="45">
+                        <a href="{{ $currentUserId > 0 ? route('profile.show', ['id' => $currentUserId]) : route('profile.personalization') }}" aria-label="Xem trang cá nhân của bạn">
+                            <img src="{{ $currentUserAvatarUrl }}" data-current-user-avatar="1" class="rounded-circle me-2 border" width="45" height="45" alt="current-user-avatar">
+                        </a>
                         <div>
                             <div class="fw-bold">Nhi Lê</div>
                             <span class="badge bg-light text-dark fw-normal border" style="font-size: 12px;">
@@ -153,7 +161,9 @@
 
                     <div class="modal-body">
                         <div class="d-flex align-items-center mb-3">
-                            <img src="https://i.pravatar.cc/45?u=nhi" class="rounded-circle me-2 border" width="45" height="45">
+                            <a href="{{ $currentUserId > 0 ? route('profile.show', ['id' => $currentUserId]) : route('profile.personalization') }}" aria-label="Xem trang cá nhân của bạn">
+                                <img src="{{ $currentUserAvatarUrl }}" data-current-user-avatar="1" class="rounded-circle me-2 border" width="45" height="45" alt="current-user-avatar">
+                            </a>
                             <div>
                                 <div class="fw-bold">Nhi Lê</div>
                                 <span class="badge bg-light text-dark fw-normal border" style="font-size: 12px;">
@@ -306,11 +316,14 @@
             $rawPostContent = (string) ($post->content ?? '');
             $plainPostContent = trim(preg_replace('/\s+/u', ' ', strip_tags(str_replace('&nbsp;', ' ', $rawPostContent))));
             $hasPostContent = $plainPostContent !== '';
+            $postOwnerId = (int) (optional($post->user)->id ?? optional($post->user)->ID ?? $post->user_id ?? 0);
         @endphp
         <div class="card mb-2 shadow-sm">
             <div class="card-body position-relative">
             <div class="d-flex align-items-start mb-1 pe-5">
-                    <img src="https://i.pravatar.cc/45?u={{ $post->user_id }}" class="rounded-circle me-2" width="42" height="42" alt="avatar">
+                    <a href="{{ $postOwnerId > 0 ? route('profile.show', ['id' => $postOwnerId]) : '#' }}" aria-label="Xem trang cá nhân tác giả bài viết">
+                        <img src="{{ optional($post->user)->avatar_url ?: ('https://i.pravatar.cc/45?u=' . ($post->user_id ?? 'post')) }}" class="rounded-circle me-2" width="42" height="42" alt="avatar" @if($postOwnerId === $currentUserId) data-current-user-avatar="1" @endif>
+                    </a>
                     <div>
                         @php
                             $postUser = optional($post->user);
@@ -393,6 +406,62 @@
 @endsection
 
 @section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function currentUserAvatarElements() {
+        return Array.prototype.slice.call(document.querySelectorAll('img[data-current-user-avatar="1"]'));
+    }
+
+    function updateCurrentUserAvatar(avatarUrl) {
+        if (!avatarUrl) {
+            return;
+        }
+
+        currentUserAvatarElements().forEach(function (img) {
+            img.src = avatarUrl;
+        });
+    }
+
+    function readAvatarPayload(rawValue) {
+        if (!rawValue) {
+            return '';
+        }
+
+        try {
+            var parsed = JSON.parse(rawValue);
+            return parsed && parsed.avatarUrl ? parsed.avatarUrl : '';
+        } catch (error) {
+            return '';
+        }
+    }
+
+    window.addEventListener('social:avatar-updated', function (event) {
+        updateCurrentUserAvatar(event && event.detail ? event.detail.avatarUrl : '');
+    });
+
+    window.addEventListener('storage', function (event) {
+        if (!event || event.key !== 'social:avatar-updated') {
+            return;
+        }
+
+        updateCurrentUserAvatar(readAvatarPayload(event.newValue));
+    });
+
+    if ('BroadcastChannel' in window) {
+        var avatarChannel = new BroadcastChannel('social-avatar');
+        avatarChannel.addEventListener('message', function (event) {
+            if (event && event.data && event.data.type === 'avatar-updated') {
+                updateCurrentUserAvatar(event.data.avatarUrl || '');
+            }
+        });
+
+        window.addEventListener('beforeunload', function () {
+            avatarChannel.close();
+        });
+    }
+});
+</script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var meta = document.getElementById('storiesRealtimeMeta');

@@ -160,7 +160,7 @@ class PostController extends Controller
         }
 
         $authUser = Auth::user();
-        if ($authUser && $authUser->getKey() !== null) {
+        if ($authUser instanceof User && $authUser->getKey() !== null) {
             return $authUser;
         }
 
@@ -183,4 +183,30 @@ class PostController extends Controller
 
         return back()->with('success', 'Đã xóa bài viết.');
     }
+
+public function share(Request $request, $id)
+{
+    // 1. Tìm bài viết gốc
+    $originalPost = Post::findOrFail($id);
+
+    // 2. Tạo bài viết mới (đây chính là bài share)
+    $sharedPost = new Post();
+    $sharedPost->user_id = auth()->id(); // Người đang share
+    $sharedPost->shared_from_id = $originalPost->id; // Lưu ID bài gốc
+    
+    // Bạn có thể cho phép người dùng viết thêm caption khi share
+    $sharedPost->content = $request->input('content', 'Đã chia sẻ một bài viết'); 
+    $sharedPost->privacy_status = 'public';
+    $sharedPost->save();
+
+    // 3. Tăng số lượng share ở bài viết gốc (nếu bạn đã thêm cột shares_count)
+    $originalPost->increment('shares_count');
+
+    // 4. Trả về JSON để AJAX trong file post-engagement.blade.php xử lý UI
+    return response()->json([
+        'ok' => true,
+        'message' => 'Đã chia sẻ lên trang cá nhân!',
+        'shares_count' => $originalPost->shares_count
+    ]);
+}
 }

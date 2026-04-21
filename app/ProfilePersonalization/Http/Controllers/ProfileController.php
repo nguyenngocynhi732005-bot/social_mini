@@ -89,6 +89,7 @@ class ProfileController extends Controller
         $videosData = $this->getVideos($targetUserId);
 
         $friendCount = (int) $friendsData->count();
+        $isOwnProfile = Auth::check() && (int) Auth::id() === $targetUserId;
 
         $fullName = trim(
             (string) ($targetUser->first_name ?? $targetUser->First_name ?? '')
@@ -118,6 +119,7 @@ class ProfileController extends Controller
             'profileDisplayName' => $profileDisplayName,
             'profileStories' => $profileStories,
             'hasActiveStory' => $profileStories->isNotEmpty(),
+            'isOwnProfile' => $isOwnProfile,
         ]);
     }
 
@@ -175,81 +177,30 @@ class ProfileController extends Controller
             return collect();
         }
 
-        $friendships = DB::table('friendships')->where('status', 1);
-
-        if (Schema::hasColumn('friendships', 'user_id') && Schema::hasColumn('friendships', 'friend_id')) {
-            $friendships->where(function ($query) use ($userId) {
-                $query->where('user_id', $userId)->orWhere('friend_id', $userId);
+        $friendships = DB::table('friendships')
+            ->where('status', 'accepted')
+            ->where(function ($query) use ($userId) {
+                $query->where('user_id', $userId)
+                    ->orWhere('friend_id', $userId);
             });
 
-            $friendIds = $friendships
-                ->get(['user_id', 'friend_id'])
-                ->map(function ($row) use ($userId) {
-                    return (int) ($row->user_id == $userId ? $row->friend_id : $row->user_id);
-                })
-                ->filter(function ($id) use ($userId) {
-                    return $id > 0 && $id !== (int) $userId;
-                })
-                ->unique()
-                ->values();
+        $friendIds = $friendships
+            ->get(['user_id', 'friend_id'])
+            ->map(function ($row) use ($userId) {
+                return (int) ($row->user_id == $userId ? $row->friend_id : $row->user_id);
+            })
+            ->filter(function ($id) use ($userId) {
+                return $id > 0 && $id !== (int) $userId;
+            })
+            ->unique()
+            ->values();
 
-            if ($friendIds->isEmpty()) {
-                return collect();
-            }
-
-            $keyName = (new User())->getKeyName();
-            return User::query()->whereIn($keyName, $friendIds)->get()->values();
+        if ($friendIds->isEmpty()) {
+            return collect();
         }
 
-        if (Schema::hasColumn('friendships', 'sender_id') && Schema::hasColumn('friendships', 'receiver_id')) {
-            $friendships->where(function ($query) use ($userId) {
-                $query->where('sender_id', $userId)->orWhere('receiver_id', $userId);
-            });
-
-            $friendIds = $friendships
-                ->get(['sender_id', 'receiver_id'])
-                ->map(function ($row) use ($userId) {
-                    return (int) ($row->sender_id == $userId ? $row->receiver_id : $row->sender_id);
-                })
-                ->filter(function ($id) use ($userId) {
-                    return $id > 0 && $id !== (int) $userId;
-                })
-                ->unique()
-                ->values();
-
-            if ($friendIds->isEmpty()) {
-                return collect();
-            }
-
-            $keyName = (new User())->getKeyName();
-            return User::query()->whereIn($keyName, $friendIds)->get()->values();
-        }
-
-        if (Schema::hasColumn('friendships', 'user_one_id') && Schema::hasColumn('friendships', 'user_two_id')) {
-            $friendships->where(function ($query) use ($userId) {
-                $query->where('user_one_id', $userId)->orWhere('user_two_id', $userId);
-            });
-
-            $friendIds = $friendships
-                ->get(['user_one_id', 'user_two_id'])
-                ->map(function ($row) use ($userId) {
-                    return (int) ($row->user_one_id == $userId ? $row->user_two_id : $row->user_one_id);
-                })
-                ->filter(function ($id) use ($userId) {
-                    return $id > 0 && $id !== (int) $userId;
-                })
-                ->unique()
-                ->values();
-
-            if ($friendIds->isEmpty()) {
-                return collect();
-            }
-
-            $keyName = (new User())->getKeyName();
-            return User::query()->whereIn($keyName, $friendIds)->get()->values();
-        }
-
-        return collect();
+        $keyName = (new User())->getKeyName();
+        return User::query()->whereIn($keyName, $friendIds)->get()->values();
     }
 
     public function getPhotos(int $userId): Collection
@@ -545,6 +496,12 @@ class ProfileController extends Controller
         if (Schema::hasColumn('users', 'avatar_path')) {
             $avatarColumns[] = 'avatar_path';
         }
+        if (Schema::hasColumn('users', 'img')) {
+            $avatarColumns[] = 'img';
+        }
+        if (Schema::hasColumn('users', 'AvatarURL')) {
+            $avatarColumns[] = 'AvatarURL';
+        }
 
         $coverColumns = [];
         if (Schema::hasColumn('users', 'cover_image')) {
@@ -564,7 +521,11 @@ class ProfileController extends Controller
 
             $avatarPath = $request->file('avatar')->store('uploads/profiles', 'public');
             foreach ($avatarColumns as $column) {
-                $updates[$column] = $avatarPath;
+                if ($column === 'AvatarURL') {
+                    $updates[$column] = asset('storage/' . ltrim($avatarPath, '/'));
+                } else {
+                    $updates[$column] = $avatarPath;
+                }
             }
 
             $responseData['avatar_path'] = $avatarPath;

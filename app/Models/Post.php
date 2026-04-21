@@ -26,6 +26,7 @@ class Post extends Model
         'font_family',
         'shared_from',
         'created_at',
+        'shared_from_id', // THÊM: Để khớp với database bạn đã sửa
     ];
 
     public function user()
@@ -48,8 +49,22 @@ class Post extends Model
         return $this->hasMany(self::class, 'shared_from');
     }
 
+    // --- CHỈ THÊM CÁC DÒNG DƯỚI ĐÂY ---
+
+    /**
+     * Quan hệ để lấy bài viết gốc (Dùng cho hiển thị trên Profile)
+     */
     public function sharedFromPost()
     {
-        return $this->belongsTo(self::class, 'shared_from');
+        // Sử dụng shared_from_id cho đúng với cột bạn đã thêm vào DB
+        return $this->belongsTo(Post::class, 'shared_from_id');
+    }
+
+    /**
+     * Quan hệ để đếm số lượt share của một bài viết
+     */
+    public function shares()
+    {
+        return $this->hasMany(Post::class, 'shared_from_id');
     }
 }

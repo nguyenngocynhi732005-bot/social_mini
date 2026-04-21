@@ -33,28 +33,28 @@ class FriendshipController extends Controller
         $relations = Friendship::query()
             ->whereIn('status', ['pending', 'accepted', 'blocked'])
             ->where(function ($query) use ($myId) {
-                $query->where('user_one_id', $myId)
-                    ->orWhere('user_two_id', $myId);
+                $query->where('user_id', $myId)
+                    ->orWhere('friend_id', $myId);
             })
-            ->get(['user_one_id', 'user_two_id', 'status']);
+            ->get(['user_id', 'friend_id', 'status']);
 
         $relationStatusByUser = [];
         foreach ($relations as $relation) {
-            $otherId = (int) ($relation->user_one_id == $myId ? $relation->user_two_id : $relation->user_one_id);
+            $otherId = (int) ($relation->user_id == $myId ? $relation->friend_id : $relation->user_id);
             $relationStatusByUser[$otherId] = $relation->status;
         }
 
         $acceptedRelations = Friendship::query()
             ->where('status', 'accepted')
             ->where(function ($query) use ($myId) {
-                $query->where('user_one_id', $myId)
-                    ->orWhere('user_two_id', $myId);
+                $query->where('user_id', $myId)
+                    ->orWhere('friend_id', $myId);
             })
-            ->get(['user_one_id', 'user_two_id']);
+            ->get(['user_id', 'friend_id']);
 
         $friendIds = $acceptedRelations
             ->map(function ($relation) use ($myId) {
-                return (int) ($relation->user_one_id == $myId ? $relation->user_two_id : $relation->user_one_id);
+                return (int) ($relation->user_id == $myId ? $relation->friend_id : $relation->user_id);
             })
             ->unique()
             ->values();
@@ -75,12 +75,12 @@ class FriendshipController extends Controller
         $blockedOrFriendIds = Friendship::query()
             ->whereIn('status', ['accepted', 'blocked'])
             ->where(function ($query) use ($myId) {
-                $query->where('user_one_id', $myId)
-                    ->orWhere('user_two_id', $myId);
+                $query->where('user_id', $myId)
+                    ->orWhere('friend_id', $myId);
             })
-            ->get(['user_one_id', 'user_two_id'])
+            ->get(['user_id', 'friend_id'])
             ->map(function ($relation) use ($myId) {
-                return (int) ($relation->user_one_id == $myId ? $relation->user_two_id : $relation->user_one_id);
+                return (int) ($relation->user_id == $myId ? $relation->friend_id : $relation->user_id);
             })
             ->unique();
 
@@ -95,9 +95,9 @@ class FriendshipController extends Controller
             ->get();
 
         $pendingRequesterIds = Friendship::query()
-            ->where('user_two_id', $myId)
+            ->where('friend_id', $myId)
             ->where('status', 'pending')
-            ->pluck('user_one_id');
+            ->pluck('user_id');
 
         $pendingRequests = User::query()
             ->whereIn('ID', $pendingRequesterIds)
@@ -141,9 +141,9 @@ class FriendshipController extends Controller
 
             // Kiểm tra xem đã có quan hệ gì chưa (kể cả người kia gửi cho mình)
             $existingFriendship = Friendship::where(function ($query) use ($myId, $targetId) {
-                $query->where('user_one_id', $myId)->where('user_two_id', $targetId);
+                $query->where('user_id', $myId)->where('friend_id', $targetId);
             })->orWhere(function ($query) use ($myId, $targetId) {
-                $query->where('user_one_id', $targetId)->where('user_two_id', $myId);
+                $query->where('user_id', $targetId)->where('friend_id', $myId);
             })->first();
 
             if ($existingFriendship && $existingFriendship->status !== 'cancelled') {
@@ -153,16 +153,16 @@ class FriendshipController extends Controller
             $result = DB::transaction(function () use ($existingFriendship, $myId, $targetId) {
                 if ($existingFriendship && $existingFriendship->status === 'cancelled') {
                     $existingFriendship->update([
-                        'user_one_id' => $myId,
-                        'user_two_id' => $targetId,
+                        'user_id' => $myId,
+                        'friend_id' => $targetId,
                         'status' => 'pending',
                     ]);
                     $friendship = $existingFriendship->fresh();
                     $isResend = true;
                 } else {
                     $friendship = Friendship::create([
-                        'user_one_id' => $myId,
-                        'user_two_id' => $targetId,
+                        'user_id' => $myId,
+                        'friend_id' => $targetId,
                         'status' => 'pending'
                     ]);
                     $isResend = false;
@@ -230,11 +230,11 @@ class FriendshipController extends Controller
             ->where('status', 'pending')
             ->where(function ($query) use ($myId, $targetId) {
                 $query->where(function ($pairQuery) use ($myId, $targetId) {
-                    $pairQuery->where('user_one_id', $myId)
-                        ->where('user_two_id', $targetId);
+                    $pairQuery->where('user_id', $myId)
+                        ->where('friend_id', $targetId);
                 })->orWhere(function ($pairQuery) use ($myId, $targetId) {
-                    $pairQuery->where('user_one_id', $targetId)
-                        ->where('user_two_id', $myId);
+                    $pairQuery->where('user_id', $targetId)
+                        ->where('friend_id', $myId);
                 });
             })
             ->delete();
@@ -254,8 +254,8 @@ class FriendshipController extends Controller
         $action = $request->input('action'); // 'accept' hoặc 'decline'
 
         // Tìm lời mời người kia gửi cho mình
-        $friendship = Friendship::where('user_one_id', $requesterId)
-                                ->where('user_two_id', $myId)
+        $friendship = Friendship::where('user_id', $requesterId)
+                    ->where('friend_id', $myId)
                                 ->where('status', 'pending')
                                 ->first();
 
@@ -288,9 +288,9 @@ class FriendshipController extends Controller
         $myId = $this->getCurrentUserId();
 
         Friendship::where(function ($query) use ($myId, $targetId) {
-            $query->where('user_one_id', $myId)->where('user_two_id', $targetId);
+            $query->where('user_id', $myId)->where('friend_id', $targetId);
         })->orWhere(function ($query) use ($myId, $targetId) {
-            $query->where('user_one_id', $targetId)->where('user_two_id', $myId);
+            $query->where('user_id', $targetId)->where('friend_id', $myId);
         })->update(['status' => 'cancelled']);
 
         return response()->json(['message' => 'Đã hủy kết bạn/thu hồi lời mời.']);
@@ -310,9 +310,9 @@ class FriendshipController extends Controller
 
         Friendship::query()
             ->where(function ($query) use ($myId, $targetId) {
-                $query->where('user_one_id', $myId)->where('user_two_id', $targetId);
+                $query->where('user_id', $myId)->where('friend_id', $targetId);
             })->orWhere(function ($query) use ($myId, $targetId) {
-                $query->where('user_one_id', $targetId)->where('user_two_id', $myId);
+                $query->where('user_id', $targetId)->where('friend_id', $myId);
             })
             ->update(['status' => 'blocked']);
 
@@ -336,9 +336,9 @@ class FriendshipController extends Controller
 
         // 2. Mở khóa trạng thái trong bảng tình bạn (trả về cancelled để có thể kết bạn lại)
         Friendship::where(function ($query) use ($myId, $targetId) {
-            $query->where('user_one_id', $myId)->where('user_two_id', $targetId);
+            $query->where('user_id', $myId)->where('friend_id', $targetId);
         })->orWhere(function ($query) use ($myId, $targetId) {
-            $query->where('user_one_id', $targetId)->where('user_two_id', $myId);
+            $query->where('user_id', $targetId)->where('friend_id', $myId);
         })->update(['status' => 'cancelled']);
 
         return response()->json(['message' => 'Đã bỏ chặn thành công.']);
