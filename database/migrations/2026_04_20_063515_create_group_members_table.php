@@ -13,6 +13,10 @@ class CreateGroupMembersTable extends Migration
      */
     public function up()
 {
+    if (Schema::hasTable('group_members')) {
+        return;
+    }
+
     Schema::create('group_members', function (Blueprint $table) {
         $table->id();
         $table->unsignedBigInteger('group_id'); // trỏ về id của social_groups

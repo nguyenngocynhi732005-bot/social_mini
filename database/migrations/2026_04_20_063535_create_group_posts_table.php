@@ -13,6 +13,10 @@ class CreateGroupPostsTable extends Migration
      */
     public function up()
     {
+        if (Schema::hasTable('group_posts')) {
+            return;
+        }
+
         Schema::create('group_posts', function (Blueprint $table) {
             $table->id();
             $table->timestamps();

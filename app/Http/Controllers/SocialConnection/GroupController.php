@@ -15,6 +15,11 @@ use Illuminate\Validation\Rule;
 
 class GroupController extends Controller
 {
+    private function hasGroupTables(): bool
+    {
+        return Schema::hasTable('social_groups') && Schema::hasTable('group_members');
+    }
+
     private function getCurrentUserId(): int
     {
         if (auth()->check()) {
@@ -29,6 +34,11 @@ class GroupController extends Controller
         return Schema::hasColumn('group_members', 'social_group_id') ? 'social_group_id' : 'group_id';
     }
 
+    private function groupPostGroupColumn(): string
+    {
+        return Schema::hasColumn('group_posts', 'social_group_id') ? 'social_group_id' : 'group_id';
+    }
+
     private function getGroupOrFail($group): SocialGroup
     {
         if ($group instanceof SocialGroup) {
@@ -40,14 +50,24 @@ class GroupController extends Controller
 
     public function index(Request $request)
     {
-        $userId = $this->getCurrentUserId();
-        $groupColumn = $this->groupMemberGroupColumn();
+        if (!Schema::hasTable('social_groups')) {
+            return view('social-connection.groups.index', [
+                'systemGroups' => collect(),
+                'joinedGroups' => collect(),
+            ]);
+        }
 
-        $joinedGroupIds = GroupMember::query()
-            ->where('user_id', $userId)
-            ->pluck($groupColumn)
-            ->unique()
-            ->values();
+        $userId = $this->getCurrentUserId();
+        $groupColumn = Schema::hasTable('group_members') ? $this->groupMemberGroupColumn() : 'group_id';
+
+        $joinedGroupIds = collect();
+        if (Schema::hasTable('group_members') && $userId > 0) {
+            $joinedGroupIds = GroupMember::query()
+                ->where('user_id', $userId)
+                ->pluck($groupColumn)
+                ->unique()
+                ->values();
+        }
 
         $systemGroups = SocialGroup::query()
             ->withCount('members')
@@ -65,6 +85,12 @@ class GroupController extends Controller
 
     public function store(Request $request)
     {
+        if (!$this->hasGroupTables()) {
+            return response()->json([
+                'message' => 'Chua khoi tao day du bang social_groups/group_members.',
+            ], 503);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -104,36 +130,50 @@ class GroupController extends Controller
 
     public function show(Request $request, $group)
     {
+        if (!Schema::hasTable('social_groups')) {
+            abort(404);
+        }
+
         $groupModel = $this->getGroupOrFail($group);
         $userId = $this->getCurrentUserId();
-        $groupColumn = $this->groupMemberGroupColumn();
+        $groupColumn = Schema::hasTable('group_members') ? $this->groupMemberGroupColumn() : 'group_id';
+        $groupPostColumn = Schema::hasTable('group_posts') ? $this->groupPostGroupColumn() : 'group_id';
 
-        // Lấy danh sách thành viên (kèm thông tin user thật)
-        $members = GroupMember::query()
-            ->with('user')
-            ->where($groupColumn, $groupModel->id)
-            ->orderBy('role')
-            ->orderBy('id')
-            ->get();
+        $members = collect();
+        if (Schema::hasTable('group_members')) {
+            $members = GroupMember::query()
+                ->with('user')
+                ->where($groupColumn, $groupModel->id)
+                ->orderBy('role')
+                ->orderBy('id')
+                ->get();
+        }
 
-        // Kiểm tra xem user hiện tại đã tham gia nhóm chưa
-        $isJoined = GroupMember::query()
-            ->where($groupColumn, $groupModel->id)
-            ->where('user_id', $userId)
-            ->exists();
+        $isJoined = false;
+        if (Schema::hasTable('group_members') && $userId > 0) {
+            $isJoined = GroupMember::query()
+                ->where($groupColumn, $groupModel->id)
+                ->where('user_id', $userId)
+                ->exists();
+        }
 
-        // THÊM MỚI Ở ĐÂY: Kiểm tra xem user hiện tại có phải là Admin của nhóm không
-        $isAdmin = GroupMember::query()
-            ->where($groupColumn, $groupModel->id)
-            ->where('user_id', $userId)
-            ->where('role', 'admin')
-            ->exists();
+        $isAdmin = false;
+        if (Schema::hasTable('group_members') && $userId > 0) {
+            $isAdmin = GroupMember::query()
+                ->where($groupColumn, $groupModel->id)
+                ->where('user_id', $userId)
+                ->where('role', 'admin')
+                ->exists();
+        }
 
-        $posts = GroupPost::query()
-            ->with('user')
-            ->where('social_group_id', $groupModel->id)
-            ->latest()
-            ->get();
+        $posts = collect();
+        if (Schema::hasTable('group_posts') && Schema::hasColumn('group_posts', $groupPostColumn)) {
+            $posts = GroupPost::query()
+                ->with('user')
+                ->where($groupPostColumn, $groupModel->id)
+                ->latest()
+                ->get();
+        }
 
         return view('social-connection.groups.show', [
             'group' => $groupModel,
@@ -145,6 +185,12 @@ class GroupController extends Controller
     }
     public function join(Request $request, $group)
     {
+        if (!$this->hasGroupTables()) {
+            return response()->json([
+                'message' => 'Chua khoi tao day du bang social_groups/group_members.',
+            ], 503);
+        }
+
         $groupModel = $this->getGroupOrFail($group);
         $userId = $this->getCurrentUserId();
         $groupColumn = $this->groupMemberGroupColumn();
@@ -216,6 +262,12 @@ class GroupController extends Controller
 
     public function leave(Request $request, $group)
     {
+        if (!$this->hasGroupTables()) {
+            return response()->json([
+                'message' => 'Chua khoi tao day du bang social_groups/group_members.',
+            ], 503);
+        }
+
         $groupModel = $this->getGroupOrFail($group);
         $userId = $this->getCurrentUserId();
         $groupColumn = $this->groupMemberGroupColumn();

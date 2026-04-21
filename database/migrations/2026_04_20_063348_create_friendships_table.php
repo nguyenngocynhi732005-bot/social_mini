@@ -13,6 +13,10 @@ class CreateFriendshipsTable extends Migration
      */
     public function up()
 {
+    if (Schema::hasTable('friendships')) {
+        return;
+    }
+
     Schema::create('friendships', function (Blueprint $table) {
         $table->id();
         $table->unsignedBigInteger('user_id');

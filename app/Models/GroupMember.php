@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class GroupMember extends Model
 {
@@ -15,6 +16,7 @@ class GroupMember extends Model
 
     protected $fillable = [
         'group_id',
+        'social_group_id',
         'user_id',
         'role',
     ];
@@ -26,6 +28,8 @@ class GroupMember extends Model
 
     public function group()
     {
-        return $this->belongsTo(SocialGroup::class, 'group_id');
+        $groupColumn = Schema::hasColumn($this->getTable(), 'social_group_id') ? 'social_group_id' : 'group_id';
+
+        return $this->belongsTo(SocialGroup::class, $groupColumn);
     }
 }

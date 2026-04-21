@@ -13,6 +13,10 @@ class CreateSocialGroupsTable extends Migration
      */
     public function up()
 {
+    if (Schema::hasTable('social_groups')) {
+        return;
+    }
+
     Schema::create('social_groups', function (Blueprint $table) {
         $table->id();
         $table->string('name');

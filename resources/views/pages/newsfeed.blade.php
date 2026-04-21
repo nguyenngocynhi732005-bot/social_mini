@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('content')
 <div id="storiesRealtimeMeta"
@@ -6,7 +6,7 @@
     data-story-count="{{ $storyCount ?? 0 }}"
     data-snapshot-url="{{ route('stories.snapshot') }}"></div>
 
-<!-- DÃY STORY (REEFS) -->
+<!-- Dãy STORY (REEFS) -->
 @include('components.story_bar')
 
 <div style="max-width: 920px; margin-left: auto; margin-right: auto;">
@@ -346,11 +346,20 @@
                 @php
                     $postMediaType = $post->media_type ?? $post->post_type ?? null;
                     $postMediaPath = $post->media_path ?? $post->image_url ?? null;
-                    $postMediaUrl = $postMediaPath
-                        ? (\Illuminate\Support\Str::startsWith((string) $postMediaPath, ['http://', 'https://'])
-                            ? $postMediaPath
-                            : asset('storage/' . ltrim((string) $postMediaPath, '/')))
-                        : null;
+                    $postMediaUrl = null;
+                    if ($postMediaPath) {
+                        $normalizedPostMediaPath = ltrim((string) $postMediaPath, '/');
+
+                        if (\Illuminate\Support\Str::startsWith($normalizedPostMediaPath, ['http://', 'https://'])) {
+                            $postMediaUrl = $normalizedPostMediaPath;
+                        } elseif (\Illuminate\Support\Str::startsWith($normalizedPostMediaPath, 'storage/')) {
+                            $postMediaUrl = asset($normalizedPostMediaPath);
+                        } elseif (\Illuminate\Support\Facades\Storage::disk('public')->exists($normalizedPostMediaPath)) {
+                            $postMediaUrl = asset('storage/' . $normalizedPostMediaPath);
+                        } elseif (\Illuminate\Support\Facades\Storage::disk('public')->exists('posts/' . $normalizedPostMediaPath)) {
+                            $postMediaUrl = asset('storage/posts/' . $normalizedPostMediaPath);
+                        }
+                    }
                 @endphp
 
                 @if($postMediaType === 'image' && $postMediaUrl)
@@ -430,7 +439,7 @@ document.addEventListener('DOMContentLoaded', function () {
 document.addEventListener('DOMContentLoaded', function () {
     var successAlert = document.getElementById('postSuccessAlert');
     if (!successAlert) {
-        successAlert = null;
+        return;
     }
 
     setTimeout(function () {
@@ -889,34 +898,53 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 try {
                     if (selectedFile) {
-                        if (uploadFeedback) {
-                            uploadFeedback.classList.remove('d-none', 'text-danger');
-                            uploadFeedback.classList.add('text-muted');
-                            uploadFeedback.textContent = 'Đang tải ảnh/video theo từng phần...';
-                        }
-                        if (progressWrap && progressBar) {
-                            progressWrap.classList.remove('d-none');
-                            updateProgressBar(progressBar, 0);
-                        }
+                        const isVideoFile = (selectedFile.type || '').indexOf('video/') === 0;
 
-                        const uploadResult = await uploadFileInChunks(
-                            selectedFile,
-                            chunkUrl,
-                            completeUrl,
-                            '{{ csrf_token() }}',
-                            progressBar,
-                            uploadFeedback
-                        );
+                        if (isVideoFile) {
+                            if (uploadFeedback) {
+                                uploadFeedback.classList.remove('d-none', 'text-danger');
+                                uploadFeedback.classList.add('text-muted');
+                                uploadFeedback.textContent = 'Đang tải video theo từng phần...';
+                            }
+                            if (progressWrap && progressBar) {
+                                progressWrap.classList.remove('d-none');
+                                updateProgressBar(progressBar, 0);
+                            }
 
-                        if (uploadedMediaPathInput) {
-                            uploadedMediaPathInput.value = uploadResult.media_path || '';
-                        }
-                        if (uploadedMediaTypeInput) {
-                            uploadedMediaTypeInput.value = uploadResult.media_type || '';
-                        }
+                            const uploadResult = await uploadFileInChunks(
+                                selectedFile,
+                                chunkUrl,
+                                completeUrl,
+                                '{{ csrf_token() }}',
+                                progressBar,
+                                uploadFeedback
+                            );
 
-                        // Tránh submit lại file lớn lần 2.
-                        mediaInput.value = '';
+                            if (uploadedMediaPathInput) {
+                                uploadedMediaPathInput.value = uploadResult.media_path || '';
+                            }
+                            if (uploadedMediaTypeInput) {
+                                uploadedMediaTypeInput.value = uploadResult.media_type || 'video';
+                            }
+
+                            // Video đã được upload chunk xong, không gửi lại file gốc.
+                            mediaInput.value = '';
+                        } else {
+                            if (uploadedMediaPathInput) {
+                                uploadedMediaPathInput.value = '';
+                            }
+                            if (uploadedMediaTypeInput) {
+                                uploadedMediaTypeInput.value = 'image';
+                            }
+                            if (progressWrap) {
+                                progressWrap.classList.add('d-none');
+                            }
+                            if (uploadFeedback) {
+                                uploadFeedback.classList.remove('d-none', 'text-danger');
+                                uploadFeedback.classList.add('text-muted');
+                                uploadFeedback.textContent = 'Đang tải ảnh lên...';
+                            }
+                        }
                     }
 
                     if (uploadFeedback) {
@@ -1453,6 +1481,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             form.dataset.processingUpload = '1';
+
+            if ((!mediaInput || !mediaInput.files || mediaInput.files.length === 0) && typeof ensureLiveVideoSelectedForUpload === 'function') {
+                ensureLiveVideoSelectedForUpload();
+            }
 
             const selectedFile = mediaInput && mediaInput.files && mediaInput.files[0] ? mediaInput.files[0] : null;
             const chunkUrl = form.getAttribute('data-chunk-url') || '';

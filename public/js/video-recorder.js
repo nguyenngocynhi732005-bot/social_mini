@@ -1027,6 +1027,26 @@ function useRecordedLiveVideo(uploadFeedback, mediaInput) {
     }
 }
 
+function ensureLiveVideoSelectedForUpload() {
+    const mediaInput = document.getElementById('videoMedia');
+    if (!mediaInput) {
+        return false;
+    }
+
+    if (mediaInput.files && mediaInput.files.length > 0) {
+        return true;
+    }
+
+    const uploadFeedback = document.getElementById('videoUploadFeedback') || document.getElementById('postUploadFeedback');
+    const blobToUse = liveEditedBlob || liveRecordedBlob;
+    if (!blobToUse) {
+        return false;
+    }
+
+    useRecordedLiveVideo(uploadFeedback, mediaInput);
+    return !!(mediaInput.files && mediaInput.files.length > 0);
+}
+
 // ============================================================================
 // UI BINDING FUNCTIONS
 // ============================================================================

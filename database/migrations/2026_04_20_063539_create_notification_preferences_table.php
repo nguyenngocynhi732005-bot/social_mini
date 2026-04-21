@@ -13,6 +13,10 @@ class CreateNotificationPreferencesTable extends Migration
      */
     public function up()
 {
+    if (Schema::hasTable('notification_preferences')) {
+        return;
+    }
+
     Schema::create('notification_preferences', function (Blueprint $table) {
         $table->id();
         $table->unsignedBigInteger('user_id');

@@ -23,6 +23,13 @@ class GroupPostController extends Controller
 
     public function store(Request $request, $groupId)
     {
+        if (!Schema::hasTable('group_members') || !Schema::hasTable('group_posts')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chua khoi tao day du bang group_members/group_posts.',
+            ], 503);
+        }
+
         $userId = (int) auth()->id();
         if ($userId <= 0) {
             return response()->json([
@@ -33,6 +40,13 @@ class GroupPostController extends Controller
 
         $memberGroupColumn = $this->groupMemberGroupColumn();
         $postGroupColumn = $this->groupPostGroupColumn();
+
+        if (!Schema::hasColumn('group_members', $memberGroupColumn) || !Schema::hasColumn('group_posts', $postGroupColumn)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cau truc cot nhom hien tai khong hop le.',
+            ], 503);
+        }
 
         $isJoined = GroupMember::query()
             ->where($memberGroupColumn, (int) $groupId)
@@ -74,14 +88,16 @@ class GroupPostController extends Controller
         $displayName = $rawName !== '' ? $rawName : 'Thành viên';
         $avatarSeed = $rawName !== '' ? $rawName : 'U';
 
-        foreach ($recipientIds as $recipientId) {
-            Notification::query()->create([
-                'receiver_id' => (int) $recipientId,
-                'sender_id' => $userId,
-                'type' => 'new_post',
-                'is_read' => false,
-                'post_id' => (int) $post->id,
-            ]);
+        if (Schema::hasTable('notifications')) {
+            foreach ($recipientIds as $recipientId) {
+                Notification::query()->create([
+                    'receiver_id' => (int) $recipientId,
+                    'sender_id' => $userId,
+                    'type' => 'new_post',
+                    'is_read' => false,
+                    'post_id' => (int) $post->id,
+                ]);
+            }
         }
 
         return response()->json([

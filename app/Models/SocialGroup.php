@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class SocialGroup extends Model
 {
@@ -27,6 +28,8 @@ class SocialGroup extends Model
 
     public function members()
     {
-        return $this->hasMany(GroupMember::class, 'group_id');
+        $groupColumn = Schema::hasColumn('group_members', 'social_group_id') ? 'social_group_id' : 'group_id';
+
+        return $this->hasMany(GroupMember::class, $groupColumn);
     }
 }

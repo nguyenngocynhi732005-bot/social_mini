@@ -18,6 +18,7 @@ class CreateSongsTable extends Migration
             $table->id();
             $table->string('title');
             $table->string('artist')->nullable();
+            $table->string('file_path')->nullable();
             $table->string('preview_url')->nullable();
             $table->boolean('is_hot')->default(true);
             $table->unsignedInteger('hot_rank')->default(999);

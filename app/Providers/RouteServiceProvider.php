@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\ProfilePersonalization\Http\Middleware\InjectAvatarProfileRedirect;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ class RouteServiceProvider extends ServiceProvider
      *
      * @var string
      */
-    public const HOME = '/home';
+    public const HOME = '/newsfeed';
 
     /**
      * The controller namespace for the application.
@@ -43,7 +44,7 @@ class RouteServiceProvider extends ServiceProvider
                 ->namespace($this->namespace)
                 ->group(base_path('routes/api.php'));
 
-            Route::middleware('web')
+            Route::middleware(['web', InjectAvatarProfileRedirect::class])
                 ->namespace($this->namespace)
                 ->group(base_path('routes/web.php'));
         });

@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Post;
+use App\Models\Post;            
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -17,9 +17,10 @@ class PostController extends Controller
     {
         $request->validate([
             'content' => 'nullable|string',
-            'media' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,mp4,webm,ogg,mov|max:2097152',
+            'media' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,bmp,avif,heic,heif,mp4,webm,ogg,mov|max:2097152',
             'uploaded_media_path' => 'nullable|string|max:255',
             'uploaded_media_type' => 'nullable|in:image,video',
+            'privacy_status' => 'nullable|in:public,friends,private',
             'text_color' => 'nullable|string|max:32',
             'font_family' => 'nullable|string|max:100',
         ], [
@@ -29,22 +30,16 @@ class PostController extends Controller
         $rawContent = (string) $request->input('content', '');
         $rawContent = str_replace('<span class="ql-cursor">﻿</span>', '', $rawContent);
         $plainText = trim(preg_replace('/\s+/u', ' ', strip_tags(str_replace('&nbsp;', ' ', $rawContent))));
-            $hasUploadedMedia = (bool) $request->filled('uploaded_media_path') || (bool) $request->filled('uploaded_media_type');
+        $hasUploadedMedia = (bool) $request->filled('uploaded_media_path') || (bool) $request->filled('uploaded_media_type');
         $content = $plainText !== '' ? $rawContent : null;
 
         if ($plainText === '' && !$request->hasFile('media') && !$hasUploadedMedia) {
-                return back()->withErrors(['post' => 'Bài viết cần nội dung hoặc ảnh/video.'])->withInput();
+            return back()->withErrors(['post' => 'Bài viết cần nội dung hoặc ảnh/video.'])->withInput();
         }
 
-        $postUser = User::query()->select('id')->first();
-        if (!$postUser) {
-            $postUser = User::query()->firstOrCreate(
-                ['email' => 'post_uploader@socialmini.local'],
-                [
-                    'name' => 'Post Uploader',
-                    'password' => Hash::make(Str::random(24)),
-                ]
-            );
+        $postUser = $this->resolvePostUser($request);
+        if (!$postUser || $postUser->getKey() === null) {
+            return back()->withErrors(['post' => 'Khong tim thay nguoi dung de dang bai viet.'])->withInput();
         }
 
         $mediaPath = $request->input('uploaded_media_path');
@@ -62,9 +57,17 @@ class PostController extends Controller
         }
 
         $payload = [
-            'user_id' => (int) $postUser->id,
+            'user_id' => (int) $postUser->getKey(),
             'content' => $content,
         ];
+
+        $privacyStatus = (string) $request->input('privacy_status', 'public');
+        if (!in_array($privacyStatus, ['public', 'friends', 'private'], true)) {
+            $privacyStatus = 'public';
+        }
+        if (Schema::hasColumn('posts', 'privacy_status')) {
+            $payload['privacy_status'] = $privacyStatus;
+        }
 
         if (Schema::hasColumn('posts', 'media_path')) {
             $payload['media_path'] = $mediaPath;
@@ -102,6 +105,67 @@ class PostController extends Controller
         }
 
         return redirect()->route($mediaType === 'video' ? 'videos' : 'newsfeed')->with('success', 'Đã đăng bài viết thành công.');
+    }
+
+    public function updatePrivacy(Request $request, Post $post)
+    {
+        if (!Schema::hasColumn('posts', 'privacy_status')) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Bang posts chua co cot privacy_status.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'privacy_status' => 'required|in:public,friends,private',
+        ]);
+
+        $postUser = $this->resolvePostUser($request);
+        if (!$postUser || (int) $postUser->getKey() <= 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Khong tim thay nguoi dung cap nhat bai viet.',
+            ], 403);
+        }
+
+        if ((int) $post->user_id !== (int) $postUser->getKey()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Ban khong co quyen thay doi quyen rieng tu bai viet nay.',
+            ], 403);
+        }
+
+        $post->privacy_status = (string) $validated['privacy_status'];
+        $post->save();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Da cap nhat quyen rieng tu bai viet.',
+            'data' => [
+                'post_id' => (int) $post->id,
+                'privacy_status' => (string) $post->privacy_status,
+            ],
+        ]);
+    }
+
+    private function resolvePostUser(Request $request): ?User
+    {
+        $rawProfileId = $request->input('profile_id');
+        if ($rawProfileId !== null && $rawProfileId !== '' && is_numeric($rawProfileId)) {
+            $profileId = (int) $rawProfileId;
+            $byProfile = User::query()->whereKey($profileId)->first();
+            if ($byProfile) {
+                return $byProfile;
+            }
+        }
+
+        $authUser = Auth::user();
+        if ($authUser && $authUser->getKey() !== null) {
+            return $authUser;
+        }
+
+        $keyName = (new User())->getKeyName();
+        return User::query()->whereNotNull($keyName)->orderBy($keyName)->first();
     }
 
     public function destroy(Post $post)

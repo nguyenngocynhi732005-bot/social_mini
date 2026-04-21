@@ -91,7 +91,7 @@ class SearchController extends Controller
                 $query->whereKeyNot(auth()->id());
             }
 
-            $users = $query->orderBy('id', 'desc')->limit(20)->get();
+            $users = $query->orderBy($query->getModel()->getKeyName(), 'desc')->limit(20)->get();
         }
 
         return view('pages.search', compact('keyword', 'users'));
@@ -112,7 +112,7 @@ class SearchController extends Controller
             $query->whereKeyNot(auth()->id());
         }
 
-        $users = $query->limit(5)->get();
+        $users = $query->orderBy($query->getModel()->getKeyName(), 'desc')->limit(5)->get();
 
         $formatted = $users->map(function (User $user) {
             return [

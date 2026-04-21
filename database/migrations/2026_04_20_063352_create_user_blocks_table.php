@@ -13,6 +13,10 @@ class CreateUserBlocksTable extends Migration
      */
     public function up()
 {
+    if (Schema::hasTable('user_blocks')) {
+        return;
+    }
+
     Schema::create('user_blocks', function (Blueprint $table) {
         $table->id();
         $table->unsignedBigInteger('blocker_id');

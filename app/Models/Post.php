@@ -17,6 +17,7 @@ class Post extends Model
     protected $fillable = [
         'user_id',
         'content',
+        'privacy_status',
         'media_path',
         'media_type',
         'image_url',
@@ -29,7 +30,7 @@ class Post extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'ID');
     }
 
     public function reactions()

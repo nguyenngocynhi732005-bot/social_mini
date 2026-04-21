@@ -1,145 +1,122 @@
-<?php
+    <?php
 
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Validation Language Lines
-    |--------------------------------------------------------------------------
-    |
-    | The following language lines contain the default error messages used by
-    | the validator class. Some of these rules have multiple versions such
-    | as the size rules. Feel free to tweak each of these messages here.
-    |
-    */
-
-    'accepted' => 'The :attribute must be accepted.',
-    'accepted_if' => 'The :attribute must be accepted when :other is :value.',
-    'active_url' => 'The :attribute is not a valid URL.',
-    'after' => 'The :attribute must be a date after :date.',
-    'after_or_equal' => 'The :attribute must be a date after or equal to :date.',
-    'alpha' => 'The :attribute must only contain letters.',
-    'alpha_dash' => 'The :attribute must only contain letters, numbers, dashes and underscores.',
-    'alpha_num' => 'The :attribute must only contain letters and numbers.',
-    'array' => 'The :attribute must be an array.',
-    'before' => 'The :attribute must be a date before :date.',
-    'before_or_equal' => 'The :attribute must be a date before or equal to :date.',
+    'accepted' => ':attribute phải được chấp nhận.',
+    'accepted_if' => ':attribute phải được chấp nhận khi :other là :value.',
+    'active_url' => ':attribute không phải là một đường dẫn hợp lệ.',
+    'after' => ':attribute phải là một ngày sau :date.',
+    'after_or_equal' => ':attribute phải là một ngày sau hoặc bằng :date.',
+    'alpha' => ':attribute chỉ được chứa chữ cái.',
+    'alpha_dash' => ':attribute chỉ được chứa chữ cái, số, dấu gạch ngang và dấu gạch dưới.',
+    'alpha_num' => ':attribute chỉ được chứa chữ cái và số.',
+    'array' => ':attribute phải là một danh sách.',
+    'before' => ':attribute phải là một ngày trước :date.',
+    'before_or_equal' => ':attribute phải là một ngày trước hoặc bằng :date.',
     'between' => [
-        'numeric' => 'The :attribute must be between :min and :max.',
-        'file' => 'The :attribute must be between :min and :max kilobytes.',
-        'string' => 'The :attribute must be between :min and :max characters.',
-        'array' => 'The :attribute must have between :min and :max items.',
+        'numeric' => ':attribute phải nằm trong khoảng :min đến :max.',
+        'file' => ':attribute phải có dung lượng từ :min đến :max kilobytes.',
+        'string' => ':attribute phải có từ :min đến :max ký tự.',
+        'array' => ':attribute phải có từ :min đến :max mục.',
     ],
-    'boolean' => 'The :attribute field must be true or false.',
-    'confirmed' => 'The :attribute confirmation does not match.',
-    'current_password' => 'The password is incorrect.',
-    'date' => 'The :attribute is not a valid date.',
-    'date_equals' => 'The :attribute must be a date equal to :date.',
-    'date_format' => 'The :attribute does not match the format :format.',
-    'declined' => 'The :attribute must be declined.',
-    'declined_if' => 'The :attribute must be declined when :other is :value.',
-    'different' => 'The :attribute and :other must be different.',
-    'digits' => 'The :attribute must be :digits digits.',
-    'digits_between' => 'The :attribute must be between :min and :max digits.',
-    'dimensions' => 'The :attribute has invalid image dimensions.',
-    'distinct' => 'The :attribute field has a duplicate value.',
-    'email' => 'The :attribute must be a valid email address.',
-    'ends_with' => 'The :attribute must end with one of the following: :values.',
-    'enum' => 'The selected :attribute is invalid.',
-    'exists' => 'The selected :attribute is invalid.',
-    'file' => 'The :attribute must be a file.',
-    'filled' => 'The :attribute field must have a value.',
+    'boolean' => ':attribute phải là kiểu đúng hoặc sai.',
+    'confirmed' => 'Xác nhận :attribute không khớp.',
+    'current_password' => 'Mật khẩu hiện tại không chính xác.',
+    'date' => ':attribute không phải là ngày hợp lệ.',
+    'date_equals' => ':attribute phải là một ngày bằng với :date.',
+    'date_format' => ':attribute không khớp với định dạng :format.',
+    'declined' => ':attribute phải bị từ chối.',
+    'declined_if' => ':attribute phải bị từ chối khi :other là :value.',
+    'different' => ':attribute và :other phải khác nhau.',
+    'digits' => ':attribute phải có :digits chữ số.',
+    'digits_between' => ':attribute phải có từ :min đến :max chữ số.',
+    'dimensions' => ':attribute có kích thước hình ảnh không hợp lệ.',
+    'distinct' => 'Trường :attribute có giá trị trùng lặp.',
+    'email' => ':attribute phải là địa chỉ email hợp lệ.',
+    'ends_with' => ':attribute phải kết thúc bằng một trong các giá trị: :values.',
+    'enum' => 'Giá trị đã chọn trong :attribute không hợp lệ.',
+    'exists' => ':attribute đã chọn không hợp lệ.',
+    'file' => ':attribute phải là một tệp tin.',
+    'filled' => ':attribute không được để trống.',
     'gt' => [
-        'numeric' => 'The :attribute must be greater than :value.',
-        'file' => 'The :attribute must be greater than :value kilobytes.',
-        'string' => 'The :attribute must be greater than :value characters.',
-        'array' => 'The :attribute must have more than :value items.',
+        'numeric' => ':attribute phải lớn hơn :value.',
+        'file' => ':attribute phải lớn hơn :value kilobytes.',
+        'string' => ':attribute phải nhiều hơn :value ký tự.',
+        'array' => ':attribute phải có nhiều hơn :value mục.',
     ],
     'gte' => [
-        'numeric' => 'The :attribute must be greater than or equal to :value.',
-        'file' => 'The :attribute must be greater than or equal to :value kilobytes.',
-        'string' => 'The :attribute must be greater than or equal to :value characters.',
-        'array' => 'The :attribute must have :value items or more.',
+        'numeric' => ':attribute phải lớn hơn hoặc bằng :value.',
+        'file' => ':attribute phải lớn hơn hoặc bằng :value kilobytes.',
+        'string' => ':attribute phải có ít nhất :value ký tự.',
+        'array' => ':attribute phải có ít nhất :value mục.',
     ],
-    'image' => 'The :attribute must be an image.',
-    'in' => 'The selected :attribute is invalid.',
-    'in_array' => 'The :attribute field does not exist in :other.',
-    'integer' => 'The :attribute must be an integer.',
-    'ip' => 'The :attribute must be a valid IP address.',
-    'ipv4' => 'The :attribute must be a valid IPv4 address.',
-    'ipv6' => 'The :attribute must be a valid IPv6 address.',
-    'json' => 'The :attribute must be a valid JSON string.',
+    'image' => ':attribute phải là một hình ảnh.',
+    'in' => ':attribute đã chọn không hợp lệ.',
+    'in_array' => ':attribute không tồn tại trong :other.',
+    'integer' => ':attribute phải là một số nguyên.',
+    'ip' => ':attribute phải là địa chỉ IP hợp lệ.',
+    'ipv4' => ':attribute phải là địa chỉ IPv4 hợp lệ.',
+    'ipv6' => ':attribute phải là địa chỉ IPv6 hợp lệ.',
+    'json' => ':attribute phải là một chuỗi JSON hợp lệ.',
     'lt' => [
-        'numeric' => 'The :attribute must be less than :value.',
-        'file' => 'The :attribute must be less than :value kilobytes.',
-        'string' => 'The :attribute must be less than :value characters.',
-        'array' => 'The :attribute must have less than :value items.',
+        'numeric' => ':attribute phải nhỏ hơn :value.',
+        'file' => ':attribute phải nhỏ hơn :value kilobytes.',
+        'string' => ':attribute phải ít hơn :value ký tự.',
+        'array' => ':attribute phải có ít hơn :value mục.',
     ],
     'lte' => [
-        'numeric' => 'The :attribute must be less than or equal to :value.',
-        'file' => 'The :attribute must be less than or equal to :value kilobytes.',
-        'string' => 'The :attribute must be less than or equal to :value characters.',
-        'array' => 'The :attribute must not have more than :value items.',
+        'numeric' => ':attribute phải nhỏ hơn hoặc bằng :value.',
+        'file' => ':attribute phải nhỏ hơn hoặc bằng :value kilobytes.',
+        'string' => ':attribute phải có tối đa :value ký tự.',
+        'array' => ':attribute không được có nhiều hơn :value mục.',
     ],
-    'mac_address' => 'The :attribute must be a valid MAC address.',
+    'mac_address' => ':attribute phải là địa chỉ MAC hợp lệ.',
     'max' => [
-        'numeric' => 'The :attribute must not be greater than :max.',
-        'file' => 'The :attribute must not be greater than :max kilobytes.',
-        'string' => 'The :attribute must not be greater than :max characters.',
-        'array' => 'The :attribute must not have more than :max items.',
+        'numeric' => ':attribute không được lớn hơn :max.',
+        'file' => ':attribute không được lớn hơn :max kilobytes.',
+        'string' => ':attribute không được quá :max ký tự.',
+        'array' => ':attribute không được có nhiều hơn :max mục.',
     ],
-    'mimes' => 'The :attribute must be a file of type: :values.',
-    'mimetypes' => 'The :attribute must be a file of type: :values.',
+    'mimes' => ':attribute phải là tệp thuộc định dạng: :values.',
+    'mimetypes' => ':attribute phải là tệp thuộc định dạng: :values.',
     'min' => [
-        'numeric' => 'The :attribute must be at least :min.',
-        'file' => 'The :attribute must be at least :min kilobytes.',
-        'string' => 'The :attribute must be at least :min characters.',
-        'array' => 'The :attribute must have at least :min items.',
+        'numeric' => ':attribute phải tối thiểu là :min.',
+        'file' => ':attribute phải có dung lượng tối thiểu :min kilobytes.',
+        'string' => ':attribute phải có ít nhất :min ký tự.',
+        'array' => ':attribute phải có ít nhất :min mục.',
     ],
-    'multiple_of' => 'The :attribute must be a multiple of :value.',
-    'not_in' => 'The selected :attribute is invalid.',
-    'not_regex' => 'The :attribute format is invalid.',
-    'numeric' => 'The :attribute must be a number.',
-    'password' => 'The password is incorrect.',
-    'present' => 'The :attribute field must be present.',
-    'prohibited' => 'The :attribute field is prohibited.',
-    'prohibited_if' => 'The :attribute field is prohibited when :other is :value.',
-    'prohibited_unless' => 'The :attribute field is prohibited unless :other is in :values.',
-    'prohibits' => 'The :attribute field prohibits :other from being present.',
-    'regex' => 'The :attribute format is invalid.',
-    'required' => 'The :attribute field is required.',
-    'required_array_keys' => 'The :attribute field must contain entries for: :values.',
-    'required_if' => 'The :attribute field is required when :other is :value.',
-    'required_unless' => 'The :attribute field is required unless :other is in :values.',
-    'required_with' => 'The :attribute field is required when :values is present.',
-    'required_with_all' => 'The :attribute field is required when :values are present.',
-    'required_without' => 'The :attribute field is required when :values is not present.',
-    'required_without_all' => 'The :attribute field is required when none of :values are present.',
-    'same' => 'The :attribute and :other must match.',
+    'multiple_of' => ':attribute phải là bội số của :value.',
+    'not_in' => ':attribute đã chọn không hợp lệ.',
+    'not_regex' => 'Định dạng :attribute không hợp lệ.',
+    'numeric' => ':attribute phải là một số.',
+    'password' => 'Mật khẩu không chính xác.',
+    'present' => ':attribute phải hiện diện.',
+    'prohibited' => 'Trường :attribute bị cấm.',
+    'prohibited_if' => 'Trường :attribute bị cấm khi :other là :value.',
+    'prohibited_unless' => 'Trường :attribute bị cấm trừ khi :other nằm trong :values.',
+    'prohibits' => 'Trường :attribute ngăn cản :other hiện diện.',
+    'regex' => 'Định dạng :attribute không hợp lệ.',
+    'required' => ':attribute không được để trống.',
+    'required_array_keys' => ':attribute phải bao gồm các khóa: :values.',
+    'required_if' => ':attribute không được để trống khi :other là :value.',
+    'required_unless' => ':attribute không được để trống trừ khi :other nằm trong :values.',
+    'required_with' => ':attribute không được để trống khi có mặt :values.',
+    'required_with_all' => ':attribute không được để trống khi có mặt tất cả :values.',
+    'required_without' => ':attribute không được để trống khi :values không có mặt.',
+    'required_without_all' => ':attribute không được để trống khi không có mặt bất kỳ :values nào.',
+    'same' => ':attribute và :other phải giống nhau.',
     'size' => [
-        'numeric' => 'The :attribute must be :size.',
-        'file' => 'The :attribute must be :size kilobytes.',
-        'string' => 'The :attribute must be :size characters.',
-        'array' => 'The :attribute must contain :size items.',
+        'numeric' => ':attribute phải bằng :size.',
+        'file' => ':attribute phải có dung lượng :size kilobytes.',
+        'string' => ':attribute phải có :size ký tự.',
+        'array' => ':attribute phải chứa :size mục.',
     ],
-    'starts_with' => 'The :attribute must start with one of the following: :values.',
-    'string' => 'The :attribute must be a string.',
-    'timezone' => 'The :attribute must be a valid timezone.',
-    'unique' => 'The :attribute has already been taken.',
-    'uploaded' => 'The :attribute failed to upload.',
-    'url' => 'The :attribute must be a valid URL.',
-    'uuid' => 'The :attribute must be a valid UUID.',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Custom Validation Language Lines
-    |--------------------------------------------------------------------------
-    |
-    | Here you may specify custom validation messages for attributes using the
-    | convention "attribute.rule" to name the lines. This makes it quick to
-    | specify a specific custom language line for a given attribute rule.
-    |
-    */
+    'starts_with' => ':attribute phải bắt đầu bằng một trong các giá trị: :values.',
+    'string' => ':attribute phải là một chuỗi ký tự.',
+    'timezone' => ':attribute phải là một múi giờ hợp lệ.',
+    'unique' => ':attribute đã tồn tại trên hệ thống.',
+    'uploaded' => ':attribute tải lên thất bại.',
+    'url' => ':attribute phải là một đường dẫn hợp lệ.',
+    'uuid' => ':attribute phải là định dạng UUID hợp lệ.',
 
     'custom' => [
         'attribute-name' => [
@@ -149,15 +126,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Custom Validation Attributes
+    | Tên các thuộc tính (Attributes)
     |--------------------------------------------------------------------------
-    |
-    | The following language lines are used to swap our attribute placeholder
-    | with something more reader friendly such as "E-Mail Address" instead
-    | of "email". This simply helps us make our message more expressive.
-    |
+    | Phần này rất quan trọng để lỗi hiển thị đẹp, ví dụ: "Email không được để trống"
+    | thay vì "email không được để trống".
     */
 
-    'attributes' => [],
+    'attributes' => [
+        'username' => 'Tên đăng nhập',
+        'email' => 'Địa chỉ email',
+        'password' => 'Mật khẩu',
+        'content' => 'Nội dung bài viết',
+        'avatar' => 'Ảnh đại diện',
+        'bio' => 'Tiểu sử',
+        'phone' => 'Số điện thoại',
+        'full_name' => 'Họ và tên',
+        'gender' => 'Giới tính',
+        'birthday' => 'Ngày sinh',
+        'comment' => 'Bình luận',
+    ],
 
 ];

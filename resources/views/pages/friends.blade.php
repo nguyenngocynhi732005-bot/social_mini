@@ -26,6 +26,15 @@
     $blockedCount = isset($blockedUsers) ? $blockedUsers->count() : 0; 
 @endphp
 
+<div id="friends-page-data"
+    data-unfriend-url-template="{{ route('social.friends.unfriend', ['user' => '__USER__']) }}"
+    data-unblock-url-template="{{ route('social.friends.unblock', ['user' => '__USER__']) }}"
+    data-block-url="{{ route('social.friends.block') }}"
+    data-respond-url="{{ route('social.friends.respond') }}"
+    data-request-url="{{ route('social.friends.request') }}"
+    data-cancel-url="{{ route('social.friends.cancel') }}"
+    hidden></div>
+
 <style>
     /* CSS cho khối giao diện chính */
     .friends-shell {
@@ -337,8 +346,13 @@
 document.addEventListener('DOMContentLoaded', function () {
     const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
     const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
-    const unfriendUrlTemplate = '{{ route('social.friends.unfriend', ['user' => '__USER__']) }}';
-    const unblockUrlTemplate = '{{ route('social.friends.unblock', ['user' => '__USER__']) }}';
+    const pageData = document.getElementById('friends-page-data');
+    const unfriendUrlTemplate = pageData ? pageData.dataset.unfriendUrlTemplate : '';
+    const unblockUrlTemplate = pageData ? pageData.dataset.unblockUrlTemplate : '';
+    const blockUrl = pageData ? pageData.dataset.blockUrl : '';
+    const respondUrl = pageData ? pageData.dataset.respondUrl : '';
+    const requestUrl = pageData ? pageData.dataset.requestUrl : '';
+    const cancelUrl = pageData ? pageData.dataset.cancelUrl : '';
 
     const requestJson = async (url, method, body, fallbackMessage) => {
         const response = await fetch(url, {
@@ -398,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (isUnfriend) {
                     await requestJson(unfriendUrlTemplate.replace('__USER__', targetId), 'DELETE', null, 'Không thể hủy kết bạn.');
                 } else {
-                    await requestJson('{{ route('social.friends.block') }}', 'POST', { target_id: targetId }, 'Không thể chặn.');
+                    await requestJson(blockUrl, 'POST', { target_id: targetId }, 'Không thể chặn.');
                 }
                 
                 friendItem.style.transition = "opacity 0.3s";
@@ -421,7 +435,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setLoading(respondBtn, 'Đang xử lý...');
 
             try {
-                await requestJson('{{ route('social.friends.respond') }}', 'POST', {
+                await requestJson(respondUrl, 'POST', {
                     requester_id: requesterId,
                     action: action
                 }, 'Không thể phản hồi lời mời.');
@@ -471,7 +485,7 @@ document.addEventListener('DOMContentLoaded', function () {
             event.preventDefault();
             const targetId = toggleBtn.dataset.id;
             const isAdd = toggleBtn.classList.contains('add-friend-btn');
-            const endpoint = isAdd ? '{{ route('social.friends.request') }}' : '{{ route('social.friends.cancel') }}';
+            const endpoint = isAdd ? requestUrl : cancelUrl;
 
             setLoading(toggleBtn, isAdd ? 'Đang gửi...' : 'Đang hủy...');
 
