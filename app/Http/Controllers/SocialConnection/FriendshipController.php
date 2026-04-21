@@ -9,6 +9,7 @@ use App\Models\Friendship;
 use App\Models\UserBlock;
 use Illuminate\Support\Facades\Log;
 use App\Models\Notification; 
+use Illuminate\Support\Facades\DB;
 
 class FriendshipController extends Controller
 {
@@ -119,6 +120,12 @@ class FriendshipController extends Controller
         try {
             $myId = $this->getCurrentUserId();
             $targetId = (int) $request->input('target_id');
+            
+            Log::info('sendRequest called', [  //LOG 1
+                'myId' => $myId,
+                'targetId' => $targetId
+            ]);
+
 
             if ($myId <= 0 || $targetId <= 0) {
                 return response()->json(['message' => 'Không tìm thấy tài khoản hợp lệ để gửi lời mời'], 422);
@@ -143,42 +150,70 @@ class FriendshipController extends Controller
                 return response()->json(['message' => 'Đã tồn tại trạng thái bạn bè hoặc lời mời'], 400);
             }
 
-            if ($existingFriendship && $existingFriendship->status === 'cancelled') {
-                $existingFriendship->update([
-                    'user_id' => $myId,
-                    'friend_id' => $targetId,
-                    'status' => 'pending',
+            $result = DB::transaction(function () use ($existingFriendship, $myId, $targetId) {
+                if ($existingFriendship && $existingFriendship->status === 'cancelled') {
+                    $existingFriendship->update([
+                        'user_id' => $myId,
+                        'friend_id' => $targetId,
+                        'status' => 'pending',
+                    ]);
+                    $friendship = $existingFriendship->fresh();
+                    $isResend = true;
+                } else {
+                    $friendship = Friendship::create([
+                        'user_id' => $myId,
+                        'friend_id' => $targetId,
+                        'status' => 'pending'
+                    ]);
+                    $isResend = false;
+                }
+
+                Log::info('Friendship ready', [
+                    'friendship_id' => $friendship->id,
+                    'is_resend' => $isResend,
+                    'status' => $friendship->status,
                 ]);
 
-                return response()->json(['message' => 'Đã gửi lại lời mời kết bạn!']);
-            }
+                Log::info('About to create notification', [
+                    'receiver_id' => $targetId,
+                    'sender_id' => $myId,
+                    'type' => 'friend_request',
+                    'friendship_id' => $friendship->id,
+                ]);
 
-            // Tạo lời mời mới
-            Friendship::create([
-                'user_id' => $myId,
-                'friend_id' => $targetId,
-                'status' => 'pending'
+                $notification = Notification::create([
+                    'receiver_id' => $targetId,
+                    'sender_id'   => $myId,
+                    'type'        => 'friend_request',
+                    'is_read'     => 0
+                ]);
+
+                Log::info('Notification created', [
+                    'notification_id' => $notification->id,
+                    'receiver_id' => $targetId,
+                    'sender_id' => $myId,
+                    'type' => 'friend_request',
+                    'friendship_id' => $friendship->id,
+                ]);
+
+                return $isResend;
+            });
+
+            return response()->json([
+                'message' => $result
+                    ? 'Đã gửi lại lời mời kết bạn!'
+                    : 'Đã gửi lời mời kết bạn thành công!'
             ]);
 
-            // --- ĐÃ SỬA: KHỚP VỚI DATABASE THỰC TẾ ---
-            Notification::create([
-                'receiver_id' => $targetId, // Đổi từ user_id -> receiver_id
-                'sender_id'   => $myId,
-                'type'        => 'friend_request',
-                'is_read'     => 0
-            ]);
-            // ------------------------------------------
-
-            return response()->json(['message' => 'Đã gửi lời mời kết bạn thành công!']);
-
-            return response()->json(['message' => 'Đã gửi lời mời kết bạn thành công!']);
         } catch (\Throwable $exception) {
             Log::error('sendRequest failed', [
                 'error' => $exception->getMessage(),
                 'trace' => $exception->getTraceAsString(),
+                'myId' => $myId ?? null,
+                'targetId' => $targetId ?? null,
             ]);
 
-            return response()->json(['message' => 'Loi he thong khi gui loi moi ket ban'], 500);
+            return response()->json(['message' => 'Lỗi hệ thống khi gửi lời mời kết bạn'], 500);
         }
     }
 

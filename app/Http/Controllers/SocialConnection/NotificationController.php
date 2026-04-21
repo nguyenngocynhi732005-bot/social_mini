@@ -27,7 +27,7 @@ class NotificationController extends Controller
         $notifications = Notification::with('sender')
             ->where('receiver_id', $userId)
             ->latest()
-            ->limit(20)
+        //    ->limit(20)
             ->get();
 
         $unreadCount = Notification::where('receiver_id', $userId)
@@ -72,8 +72,8 @@ class NotificationController extends Controller
                 }
 
                 // Tự động tạo câu thông báo dựa vào cột 'type'
-                $message = $noti->message ?: '';
-                $link = $noti->link ?: '#';
+                $message ='';
+                $link = '#';
 
                 if ($noti->type === 'friend_request') {
                     if ($message === '') {
